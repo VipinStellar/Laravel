@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jul 25, 2022 at 05:19 AM
+-- Generation Time: Aug 10, 2022 at 07:17 AM
 -- Server version: 10.4.24-MariaDB
 -- PHP Version: 8.1.4
 
@@ -405,7 +405,23 @@ INSERT INTO `customer_detail` (`id`, `customer_name`) VALUES
 (3, 'Jay Kumar'),
 (4, 'Om Kumar'),
 (5, 'Om Kumar'),
-(6, 'Vipin kumar');
+(6, 'Vipin kumar'),
+(7, 'Vipin kumar'),
+(8, 'Vipin1 kumar');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `job_status`
+--
+
+CREATE TABLE `job_status` (
+  `id` int(11) NOT NULL,
+  `media_id` smallint(5) NOT NULL,
+  `status` smallint(5) NOT NULL,
+  `remarks` text NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 -- --------------------------------------------------------
 
@@ -431,7 +447,6 @@ CREATE TABLE `media` (
   `service_type` varchar(255) DEFAULT NULL,
   `media_casing` varchar(255) DEFAULT NULL,
   `media_interface` varchar(100) DEFAULT NULL,
-  `no_media_received` varchar(40) DEFAULT NULL,
   `media_make` varchar(100) DEFAULT NULL,
   `media_model` varchar(100) DEFAULT NULL,
   `media_serial` varchar(100) DEFAULT NULL,
@@ -478,19 +493,25 @@ CREATE TABLE `media` (
   `drive_count` varchar(255) DEFAULT NULL,
   `media_ubi` varchar(255) DEFAULT NULL,
   `backup_software` varchar(255) DEFAULT NULL,
-  `cloning_possibility` varchar(255) DEFAULT NULL
+  `cloning_possibility` varchar(255) DEFAULT NULL,
+  `disk_type` varchar(255) DEFAULT NULL,
+  `reading_process` varchar(255) DEFAULT NULL,
+  `state_identified` varchar(255) DEFAULT NULL,
+  `server_type` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 --
 -- Dumping data for table `media`
 --
 
-INSERT INTO `media` (`id`, `zoho_id`, `user_id`, `customer_id`, `branch_id`, `transfer_id`, `job_id`, `zoho_job_id`, `stage`, `team_id`, `team_assign`, `media_type`, `media_capacity`, `service_mode`, `service_type`, `media_casing`, `media_interface`, `no_media_received`, `media_make`, `media_model`, `media_serial`, `media_condition`, `tampered_status`, `peripherals_details`, `media_problem`, `encryption_software`, `encryption_version`, `important_data`, `encryption_username`, `encryption_password`, `zoho_user`, `case_type`, `recovery_possibility`, `required_days`, `recovery_percentage`, `access_percentage`, `tampering_required`, `recoverable_data`, `no_recovery_reason`, `assessment_due_reason`, `assessment_due_other_reason`, `selected_data`, `job_status`, `media_os`, `media_firmware`, `extension_required`, `encryption_status`, `extension_day`, `created_on`, `last_updated`, `encryption_type`, `encryption_details_correct`, `media_damage`, `noise_type`, `drive_electronics`, `rotary_function`, `platters_condition`, `further_use`, `compression_status`, `file_system_info`, `data_loss_reason`, `drive_count`, `media_ubi`, `backup_software`, `cloning_possibility`) VALUES
-(1, '7836089433', 60, 1, 2, 6, 'Ban/01', '123546', '4', 0, 0, 'Flash Media', '240 GB', NULL, NULL, NULL, NULL, NULL, 'HDD', 'SG23456883', '987514', 'Non Tampered', 'Tampered Media', NULL, 'N/A', 'N/A', 'N/A', '', 'N/A', 'N/A', 'anis Kumar', 'Logical', 'Yes', '8', '50%', NULL, 'Already Tampered', 'Data recoverable with file names only but without folder names', NULL, 'Head Ribbon Cable Found Burnt, Smoke Layer Found On The Platter, Platter Cleaning In Process', NULL, NULL, 'Waiting For Assessment', 'UNIX', NULL, 'Yes', 'Yes', '16', '2022-06-01 08:18:26', '2022-07-22 08:57:17', 'Software', 'No', 'No external damage found', NULL, NULL, NULL, NULL, NULL, 'un-compressed', 'File system information found corrupted', 'Overwritten data', NULL, NULL, NULL, NULL),
-(2, '783608991', 60, 3, 2, 4, NULL, NULL, '2', 0, 0, 'Desktop HDD', '160 GB', NULL, NULL, NULL, NULL, NULL, 'HDD', 'SG23456885', '1234567', 'Tampered', 'Tampered Media', NULL, 'N/A', 'N/A', 'N/A', '', 'N/A', 'N/A', 'Ashu Kumar', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2022-07-05 06:15:16', '2022-07-05 06:30:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(3, '783608992', 60, 4, 2, NULL, NULL, NULL, '2', 0, 0, 'Laptop HDD', '128 GB', NULL, NULL, NULL, NULL, NULL, 'HDD', 'SG23456856', '1234555', 'Non Tampered', 'Not Tampered', NULL, 'N/A', 'N/A', 'N/A', '', 'N/A', 'N/A', 'Sam Kumar', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2022-07-06 09:24:52', '2022-07-06 09:25:37', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(4, '7836089982', 60, 5, 3, 12, NULL, NULL, '1', 1, 1, 'Raid', '128 GB', 'Remote-Online', 'Data erasing', 'Storage box', 'M.2', '16', 'HDD', 'SG23456856', '1234555', 'Non Tampered', 'Not Tampered', 'xvx', 'N/A', 'N/A', 'N/A', '', 'N/A', 'N/A', 'Sam Kumar', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2022-07-06 09:41:00', '2022-07-20 06:54:42', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(5, '473255950034527846055', 60, 6, 2, NULL, NULL, NULL, '1', 0, 0, 'HDD', '', NULL, NULL, NULL, NULL, NULL, '', '', 'test', '', '', '', '', '', '', '', '', '', 'Aman Kumar', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2022-07-22 06:57:39', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+INSERT INTO `media` (`id`, `zoho_id`, `user_id`, `customer_id`, `branch_id`, `transfer_id`, `job_id`, `zoho_job_id`, `stage`, `team_id`, `team_assign`, `media_type`, `media_capacity`, `service_mode`, `service_type`, `media_casing`, `media_interface`, `media_make`, `media_model`, `media_serial`, `media_condition`, `tampered_status`, `peripherals_details`, `media_problem`, `encryption_software`, `encryption_version`, `important_data`, `encryption_username`, `encryption_password`, `zoho_user`, `case_type`, `recovery_possibility`, `required_days`, `recovery_percentage`, `access_percentage`, `tampering_required`, `recoverable_data`, `no_recovery_reason`, `assessment_due_reason`, `assessment_due_other_reason`, `selected_data`, `job_status`, `media_os`, `media_firmware`, `extension_required`, `encryption_status`, `extension_day`, `created_on`, `last_updated`, `encryption_type`, `encryption_details_correct`, `media_damage`, `noise_type`, `drive_electronics`, `rotary_function`, `platters_condition`, `further_use`, `compression_status`, `file_system_info`, `data_loss_reason`, `drive_count`, `media_ubi`, `backup_software`, `cloning_possibility`, `disk_type`, `reading_process`, `state_identified`, `server_type`) VALUES
+(1, '7836089433', 60, 1, 2, 6, 'Ban/01', '123546', '4', 0, 0, 'SSD', '240 GB', NULL, NULL, NULL, 'FC', 'HDD', 'm SATA', '987514', 'Folded tape Ribbon', 'Tampered Media', NULL, 'N/A', 'N/A', 'N/A', '', 'N/A', 'N/A', 'anis Kumar', 'Logical', 'Yes', '16', '40%', NULL, 'Already Tampered', 'Data recoverable only in Raw form (without files & folders name)', NULL, 'Waiting  For Tempering Permission', NULL, NULL, 'Waiting For Assessment', 'Mac OS', NULL, 'Yes', 'Not determined at present stage', '7', '2022-06-01 08:18:26', '2022-08-09 06:10:04', 'Hardware', 'Yes', 'Damage found', 'No movement', 'Not functional', 'Normal', 'Light scratches on lower side of the platter', 'Not Possible', 'Compressed', 'File system information found corrupted', 'Overwritten data', '5', 'Not readable', 'Veritas', 'Yes', 'DVD', 'Other', 'light scratches on disk surface', 'Raid5'),
+(2, '783608991', 60, 3, 2, 4, NULL, NULL, '2', 0, 0, 'Desktop HDD', '160 GB', NULL, NULL, NULL, NULL, 'HDD', 'SG23456885', '1234567', 'Tampered', 'Tampered Media', NULL, 'N/A', 'N/A', 'N/A', '', 'N/A', 'N/A', 'Ashu Kumar', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2022-07-05 06:15:16', '2022-07-05 06:30:00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(3, '783608992', 60, 4, 2, NULL, NULL, NULL, '2', 0, 0, 'Laptop HDD', '128 GB', NULL, NULL, NULL, NULL, 'HDD', 'SG23456856', '1234555', 'Non Tampered', 'Not Tampered', NULL, 'N/A', 'N/A', 'N/A', '', 'N/A', 'N/A', 'Sam Kumar', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2022-07-06 09:24:52', '2022-07-06 09:25:37', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(4, '7836089982', 60, 5, 3, 12, NULL, NULL, '10', 1, 1, 'RAID', '128 GB', 'Remote-Online', 'Data erasing', 'Storage box', 'SCSI', 'HDD', 'SG23456856', '1234555', 'Non Tampered', 'Not Tampered', 'xvx', 'N/A', 'N/A', 'N/A', '', 'N/A', 'N/A', 'Sam Kumar', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2022-07-06 09:41:00', '2022-07-29 05:24:55', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '15', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(5, '473255950034527846055', 60, 6, 2, 13, NULL, NULL, '2', 2, 1, 'CD/DVD', '16 GB', 'Remote-Online', 'Clonning', 'With casing', NULL, 'ghjg', 'ghjhg', 'test', 'Burnt', 'Not Tampered', NULL, '', '', '', '', '', '', 'Aman Kumar', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Yes', NULL, '16', '2022-07-22 06:57:39', '2022-07-29 04:55:01', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(6, '4444444', 60, 7, 2, NULL, NULL, NULL, '10', 0, 0, 'SSD', '4 GB', 'Onsite- Customer\'s Site', 'Clonning', 'With casing', NULL, 'ghgf', 'hgfh', 'test', 'Burnt', 'Do Not Know', 'fghf', '', '', '', '', '', '', 'Aman Kumar', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2022-07-29 05:34:22', '2022-08-09 04:37:44', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(7, '4444555444', 60, 8, 2, 14, NULL, NULL, '10', 0, 0, 'SSD', NULL, 'Onsite- Customer\'s Site', 'Clonning', 'With casing', NULL, 'dfgd', 'dfgdg', 'test', NULL, 'Tampered Media', NULL, '', '', '', '', '', '', 'Aman Kumar', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Yes', NULL, '16', '2022-07-29 05:34:37', '2022-07-29 05:59:34', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -580,7 +601,42 @@ INSERT INTO `media_history` (`id`, `media_id`, `added_by`, `added_on`, `action_t
 (64, 4, '60', '2022-07-20 06:54:42', 'edit', 'csd', 1, 'media_in'),
 (65, 5, 'Aman Kumar', '2022-07-22 06:57:39', 'edit', 'Case added by Zoho user Aman Kumar', 1, 'media_in'),
 (66, 1, '60', '2022-07-22 08:57:17', 'edit', 'xcx', 4, 'assessment'),
-(67, 5, '60', '2022-07-22 09:47:32', 'assign', 'Lab Technician changed to Amit by Amit.', 1, 'media_in');
+(67, 5, '60', '2022-07-22 09:47:32', 'assign', 'Lab Technician changed to Amit by Amit.', 1, 'media_in'),
+(68, 1, '60', '2022-07-26 06:11:33', 'edit', 'm,m,', 4, 'assessment'),
+(69, 1, '60', '2022-07-26 06:50:36', 'edit', 'bnmb', 4, 'assessment'),
+(70, 1, '60', '2022-07-26 06:53:17', 'edit', 'cvbc', 3, 'assessment'),
+(71, 1, '60', '2022-07-26 07:17:52', 'edit', 'czsdc', 3, 'assessment'),
+(72, 4, '60', '2022-07-27 04:14:25', 'edit', 'vcx', 1, 'media_in'),
+(73, 1, '60', '2022-07-27 06:08:31', 'edit', 'xcxz', 3, 'assessment'),
+(74, 4, '60', '2022-07-27 06:52:05', 'edit', 'ddd', 1, 'media_in'),
+(75, 1, '60', '2022-07-27 09:04:58', 'edit', 'xcx', 3, 'assessment'),
+(76, 1, '60', '2022-07-27 09:15:30', 'edit', 'sss', 3, 'assessment'),
+(77, 5, '60', '2022-07-28 08:45:24', 'transfer', 'Media Transferred Bengaluru to Head Office by Amit.', 1, 'media_in'),
+(78, 1, '60', '2022-07-29 04:47:45', 'edit', 'gggg', 4, 'assessment'),
+(79, 5, '60', '2022-07-29 04:51:49', 'transfer', 'Media In by Amit', 1, 'media_in'),
+(80, 5, '60', '2022-07-29 04:51:58', 'transfer', 'Media Assign New Team ', 1, 'media_in'),
+(81, 5, '60', '2022-07-29 04:53:34', 'edit', 'ghjg', 10, 'media_in'),
+(82, 5, '60', '2022-07-29 04:55:01', 'edit', 'vbnv', 2, 'media_in'),
+(83, 4, '60', '2022-07-29 05:02:37', 'edit', 'zzz', 1, 'media_in'),
+(84, 4, '60', '2022-07-29 05:24:55', 'edit', 'cvbc', 10, 'media_in'),
+(85, 6, 'Aman Kumar', '2022-07-29 05:34:22', 'edit', 'Case added by Zoho user Aman Kumar', 1, 'media_in'),
+(86, 7, 'Aman Kumar', '2022-07-29 05:34:37', 'edit', 'Case added by Zoho user Aman Kumar', 1, 'media_in'),
+(87, 7, '60', '2022-07-29 05:58:36', 'assign', 'Lab Technician changed to Ankit by Amit.', 1, 'media_in'),
+(88, 7, '60', '2022-07-29 05:59:06', 'assign', 'Lab Technician changed to Amit by Amit.', 1, 'media_in'),
+(89, 7, '60', '2022-07-29 05:59:34', 'edit', 'dfgdgdfg', 10, 'media_in'),
+(90, 7, '60', '2022-07-29 06:02:06', 'transfer', 'Media Transferred Bengaluru to Chennai by Amit.', 10, 'media_in'),
+(91, 6, '60', '2022-08-08 10:04:10', 'assign', 'Lab Technician changed to Amit by Amit.', 1, 'media_in'),
+(92, 6, '60', '2022-08-08 10:22:51', 'assign', 'Lab Technician changed to Ashok by Amit.', 1, 'media_in'),
+(93, 6, '60', '2022-08-08 10:22:58', 'assign', 'Lab Technician changed to Amit by Amit.', 1, 'media_in'),
+(94, 6, '60', '2022-08-08 11:35:17', 'edit', 'dsfsfs', 1, 'media_in'),
+(95, 6, '60', '2022-08-08 11:38:01', 'edit', 'csdc', 1, 'media_in'),
+(96, 7, '60', '2022-08-09 04:36:30', 'transfer', 'Media In by Amit', 10, 'media_in'),
+(97, 6, '60', '2022-08-09 04:37:44', 'edit', 'fgfh', 10, 'media_in'),
+(98, 1, '60', '2022-08-09 05:41:45', 'edit', 'dfg', 4, 'assessment'),
+(99, 1, '60', '2022-08-09 05:50:22', 'edit', 'sdas', 4, 'assessment'),
+(100, 1, '60', '2022-08-09 06:05:09', 'edit', 'ddd', 4, 'assessment'),
+(101, 1, '60', '2022-08-09 06:05:42', 'edit', 'dd', 4, 'assessment'),
+(102, 1, '60', '2022-08-09 06:10:04', 'edit', 'zxc', 4, 'assessment');
 
 -- --------------------------------------------------------
 
@@ -625,9 +681,10 @@ INSERT INTO `module` (`id`, `name`, `slug`, `status`) VALUES
 (3, 'Branch', 'branch', 1),
 (6, 'Media In', 'media', 1),
 (7, 'Media Case Details', 'case-details', 1),
-(9, 'Media Assessment', 'media-assessment', 1),
-(10, 'Media Pre Analysis', 'pre-analysis', 1),
-(11, 'Transfer Media', 'transfer-media', 1);
+(9, 'Media Inspection', 'media-assessment', 1),
+(10, 'Media Pre Inspection', 'pre-analysis', 1),
+(11, 'Transfer Media', 'transfer-media', 1),
+(12, 'Job Status', 'job-status', 1);
 
 -- --------------------------------------------------------
 
@@ -683,11 +740,11 @@ CREATE TABLE `role` (
 --
 
 INSERT INTO `role` (`id`, `role_name`, `parent_id`, `assign`, `created_at`, `updated_at`) VALUES
-(1, 'Super Admin', 0, '{\"access\":[\"user\",\"role\",\"branch\",\"media\",\"case-details\",\"assign-to\",\"media-assessment\",\"pre-analysis\",\"transfer-media\"],\"modify\":[\"user\",\"role\",\"branch\",\"media\",\"case-details\",\"assign-to\",\"media-assessment\",\"pre-analysis\",\"transfer-media\"],\"delete\":[\"user\",\"role\",\"branch\",\"media\",\"case-details\",\"assign-to\",\"media-assessment\",\"pre-analysis\",\"transfer-media\"]}', NULL, '2022-06-15 03:15:52'),
+(1, 'Super Admin', 0, '{\"access\":[\"user\",\"role\",\"branch\",\"media\",\"case-details\",\"media-assessment\",\"pre-analysis\",\"transfer-media\",\"job-status\"],\"modify\":[\"user\",\"role\",\"branch\",\"media\",\"case-details\",\"media-assessment\",\"pre-analysis\",\"transfer-media\",\"job-status\"],\"delete\":[\"user\",\"role\",\"branch\",\"media\",\"case-details\",\"media-assessment\",\"pre-analysis\",\"transfer-media\",\"job-status\"]}', NULL, '2022-08-09 07:23:36'),
 (2, 'Admin', 1, '{\"access\":[\"user\",\"media\",\"case-details\",\"assign-to\",\"media-assessment\",\"pre-analysis\",\"transfer-media\"],\"modify\":[\"case-details\",\"assign-to\",\"media-assessment\",\"pre-analysis\",\"transfer-media\"],\"delete\":[\"case-details\",\"assign-to\",\"media-assessment\",\"pre-analysis\",\"transfer-media\"]}', '2022-05-04 21:42:58', '2022-06-15 03:16:19'),
 (3, 'Manager', 1, '{\"access\":[\"media\",\"case-details\",\"assign-to\",\"media-assessment\",\"pre-analysis\",\"transfer-media\"],\"modify\":[\"case-details\",\"assign-to\",\"media-assessment\",\"pre-analysis\",\"transfer-media\"],\"delete\":[\"case-details\",\"assign-to\",\"media-assessment\",\"pre-analysis\",\"transfer-media\"]}', '2022-05-04 21:43:23', '2022-06-15 03:16:38'),
-(8, 'Lab Technician', 3, '{\"access\":[\"media\",\"case-details\",\"assign-to\",\"media-assessment\",\"pre-analysis\",\"transfer-media\"],\"modify\":[\"media\",\"case-details\",\"assign-to\",\"media-assessment\",\"pre-analysis\",\"transfer-media\"],\"delete\":[\"media\",\"case-details\",\"assign-to\",\"media-assessment\",\"pre-analysis\",\"transfer-media\"]}', '2022-05-13 03:23:13', '2022-06-15 03:16:59'),
-(9, 'Gurugram(H/O)', 3, '{\"access\":[\"media\",\"case-details\",\"assign-to\",\"media-assessment\",\"pre-analysis\",\"transfer-media\"],\"modify\":[\"case-details\",\"assign-to\",\"media-assessment\",\"pre-analysis\",\"transfer-media\"],\"delete\":null}', '2022-05-24 04:03:59', '2022-06-15 03:17:16');
+(8, 'Lab Technician', 3, '{\"access\":[\"media\",\"case-details\",\"media-assessment\",\"pre-analysis\",\"transfer-media\",\"job-status\"],\"modify\":[\"media\",\"case-details\",\"media-assessment\",\"pre-analysis\",\"transfer-media\",\"job-status\"],\"delete\":[\"media\",\"case-details\",\"media-assessment\",\"pre-analysis\",\"transfer-media\",\"job-status\"]}', '2022-05-13 03:23:13', '2022-08-09 09:04:58'),
+(9, 'Gurugram(H/O)', 3, '{\"access\":[\"media\",\"case-details\",\"media-assessment\",\"pre-analysis\",\"transfer-media\",\"job-status\"],\"modify\":[\"case-details\",\"media-assessment\",\"pre-analysis\",\"transfer-media\",\"job-status\"],\"delete\":null}', '2022-05-24 04:03:59', '2022-08-09 07:24:16');
 
 -- --------------------------------------------------------
 
@@ -712,7 +769,8 @@ INSERT INTO `stage` (`id`, `stage_name`, `type`) VALUES
 (4, 'Inspection In Process', 'assessment'),
 (5, 'Inspection Done', 'assessment'),
 (6, 'Case Possible', NULL),
-(7, 'Case Not Possible', NULL);
+(7, 'Case Not Possible', NULL),
+(10, 'Pre Inspection Process', 'analysis');
 
 -- --------------------------------------------------------
 
@@ -809,7 +867,9 @@ INSERT INTO `transfer_media` (`id`, `transfer_code`, `old_branch_id`, `new_branc
 (9, NULL, 3, 3, 'Need to send to HO for Inspection', '2022-07-13 05:52:49', 4, NULL, '1'),
 (10, 'HO/0003', 3, 23, 'Need to send to Other Branch for Inspection', '2022-07-13 07:14:11', 4, 3, '1'),
 (11, NULL, 3, 2, 'Need to send to HO for Inspection', '2022-07-13 09:29:02', 4, NULL, '1'),
-(12, 'HO/0004', 3, 23, 'Need to send to HO for Inspection', '2022-07-13 09:29:33', 4, 4, '1');
+(12, 'HO/0004', 3, 23, 'Need to send to HO for Inspection', '2022-07-13 09:29:33', 4, 4, '1'),
+(13, 'HO/0005', 2, 23, 'Need to send to HO for Inspection', '2022-07-28 08:45:24', 5, 5, '1'),
+(14, NULL, 2, 4, 'Need to send to HO for Inspection', '2022-07-29 06:02:05', 7, NULL, '1');
 
 -- --------------------------------------------------------
 
@@ -838,13 +898,13 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `name`, `email`, `emp_code`, `role_id`, `supervisor_id`, `email_verified_at`, `password`, `status`, `team_id`, `remember_token`, `created_at`, `updated_at`) VALUES
-(1, 'vipin kumar', 'vipin.kumar@stellarinfo.com', 'S1942', 1, NULL, '2022-04-18 00:18:37', '$2y$10$anYvJnqmUvwetVtYRwF2OuD1t72UpXTapxF6SoY14YRpEgWVWQLba', 1, NULL, 'YsQFxH11ht', '2022-04-18 00:18:38', '2022-05-04 21:50:38'),
-(58, 'Anik', 'anil@stellarinfo.com', 's1085', 3, 1, NULL, '$2y$10$anYvJnqmUvwetVtYRwF2OuD1t72UpXTapxF6SoY14YRpEgWVWQLba', 1, NULL, NULL, NULL, '2022-06-16 03:39:58'),
-(59, 'Ankit', 'ankit@stellarinfo.com', 'S1955', 3, 0, NULL, '$2y$10$EzZeLAcYwOrv6ZRfPCsV1OpmzIo4rQddyCs0MJiYFrgUrUtfOmRAa', 1, NULL, NULL, '2022-05-13 03:45:32', '2022-06-16 05:30:59'),
-(60, 'Amit', 'amit@stellarinfo.com', 'S1943', 8, 59, NULL, '$2y$10$dfyKUdTJeNxRMyO6nCTGhuRlLKqqqof6EgRpizi1iVUkfuNBzuqbe', 1, NULL, NULL, '2022-05-13 04:06:43', '2022-06-16 03:36:56'),
-(61, 'Subham kumar', 'subham@stellarinfo.com', 'S19425', 9, 0, NULL, '$2y$10$BQv7nbC15XXzbvln01Px0O6tDqnuXKi8BZUcBrnl5yLMWeKxhch/G', 1, 1, NULL, '2022-05-24 04:05:42', '2022-07-11 06:49:56'),
-(62, 'Ashok', 'ashok@stellarinfo.com', 'S1958', 8, 59, NULL, '$2y$10$OcPVAxxjq6PhTK6ykdHbHeTqta103nNuztitbZKkGlnUQJpfUWr.y', 1, NULL, NULL, '2022-06-10 03:35:07', '2022-06-16 03:37:49'),
-(63, 'Aman', 'aman@stellarinfo.com', 'S1548', 8, 0, NULL, '$2y$10$DxC5anHEaFG6Vhj0tF67hum9TNpUEeqlueNLRWfcafM1/DUROS2ki', 1, NULL, NULL, '2022-06-20 10:25:29', '2022-06-20 10:25:29');
+(1, 'vipin kumar', 'vipin.kumar@stellarinfo.com', 'S1942', 1, NULL, '2022-04-18 00:18:37', '$2y$10$anYvJnqmUvwetVtYRwF2OuD1t72UpXTapxF6SoY14YRpEgWVWQLba', 1, NULL, 'YsQFxH11ht', '2022-04-18 00:18:38', '2022-08-08 06:58:15'),
+(58, 'Anik', 'anil@stellarinfo.com', 's1085', 3, 1, NULL, '$2y$10$anYvJnqmUvwetVtYRwF2OuD1t72UpXTapxF6SoY14YRpEgWVWQLba', 1, NULL, NULL, NULL, '2022-08-08 09:05:54'),
+(59, 'Ankit', 'ankit@stellarinfo.com', 'S1955', 3, 0, NULL, '$2y$10$EzZeLAcYwOrv6ZRfPCsV1OpmzIo4rQddyCs0MJiYFrgUrUtfOmRAa', 1, NULL, NULL, '2022-05-13 03:45:32', '2022-08-08 09:06:49'),
+(60, 'Amit', 'amit@stellarinfo.com', 'S1943', 8, 59, NULL, '$2y$10$dfyKUdTJeNxRMyO6nCTGhuRlLKqqqof6EgRpizi1iVUkfuNBzuqbe', 1, NULL, NULL, '2022-05-13 04:06:43', '2022-08-08 07:28:07'),
+(61, 'Subham kumar', 'subham@stellarinfo.com', 'S19425', 9, 0, NULL, '$2y$10$BQv7nbC15XXzbvln01Px0O6tDqnuXKi8BZUcBrnl5yLMWeKxhch/G', 1, 1, NULL, '2022-05-24 04:05:42', '2022-08-08 09:05:19'),
+(62, 'Ashok', 'ashok@stellarinfo.com', 'S1958', 8, 59, NULL, '$2y$10$OcPVAxxjq6PhTK6ykdHbHeTqta103nNuztitbZKkGlnUQJpfUWr.y', 1, NULL, NULL, '2022-06-10 03:35:07', '2022-08-08 09:05:00'),
+(63, 'Aman', 'aman@stellarinfo.com', 'S1548', 8, 0, NULL, '$2y$10$DxC5anHEaFG6Vhj0tF67hum9TNpUEeqlueNLRWfcafM1/DUROS2ki', 1, NULL, NULL, '2022-06-20 10:25:29', '2022-08-08 09:04:33');
 
 --
 -- Indexes for dumped tables
@@ -873,6 +933,12 @@ ALTER TABLE `country`
 -- Indexes for table `customer_detail`
 --
 ALTER TABLE `customer_detail`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `job_status`
+--
+ALTER TABLE `job_status`
   ADD PRIMARY KEY (`id`);
 
 --
@@ -970,19 +1036,25 @@ ALTER TABLE `country`
 -- AUTO_INCREMENT for table `customer_detail`
 --
 ALTER TABLE `customer_detail`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
+-- AUTO_INCREMENT for table `job_status`
+--
+ALTER TABLE `job_status`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `media`
 --
 ALTER TABLE `media`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `media_history`
 --
 ALTER TABLE `media_history`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=68;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=103;
 
 --
 -- AUTO_INCREMENT for table `media_team`
@@ -994,7 +1066,7 @@ ALTER TABLE `media_team`
 -- AUTO_INCREMENT for table `module`
 --
 ALTER TABLE `module`
-  MODIFY `id` tinyint(4) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` tinyint(4) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `notification`
@@ -1012,7 +1084,7 @@ ALTER TABLE `role`
 -- AUTO_INCREMENT for table `stage`
 --
 ALTER TABLE `stage`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `states`
@@ -1024,7 +1096,7 @@ ALTER TABLE `states`
 -- AUTO_INCREMENT for table `transfer_media`
 --
 ALTER TABLE `transfer_media`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT for table `users`

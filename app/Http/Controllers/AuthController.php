@@ -68,11 +68,11 @@ class AuthController extends Controller
 
     protected function respondWithToken($token)
     {
-        $user = User::find(auth()->user()->id);
-        if($user->token != null)
-        JWTAuth::setToken($user->token)->invalidate();
-        $user->token = $token;
-        $user->save();
+        // $user = User::find(auth()->user()->id);
+        // if($user->token != null)
+        // JWTAuth::setToken($user->token)->invalidate();
+        // $user->token = $token;
+        // $user->save();
         return response()->json(
             [
                 'id' =>auth()->user()->id,

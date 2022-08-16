@@ -223,12 +223,6 @@ class MediaController extends Controller
             return response()->json($media);
     }
 
-    function _insertMediaHistory($mediaIn,$type,$remarks,$module,$status)
-    {
-        DB::insert('insert into media_history (media_id,added_by,action_type,remarks,module_type,added_on,status) values (?,?,?,?,?,?,?)', array($mediaIn->id, auth()->user()->id,
-        $type,$remarks,$module,Carbon::now()->toDateTimeString(),$status));
-    }
-
     public function getMediaStatus($type)
     {
         if($type =="all")

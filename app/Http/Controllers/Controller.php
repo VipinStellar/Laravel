@@ -13,6 +13,7 @@ use App\Models\Branch;
 use App\Models\User;
 use App\Models\Stage;
 use App\Models\BranchRelated;
+use Carbon\Carbon; 
 use DB;
 class Controller extends BaseController
 {
@@ -50,6 +51,12 @@ protected function _getPaginatedResult($query,$request)
       $stage = Stage::find($id);
       return $stage->stage_name;
   }
+
+  protected function  _insertMediaHistory($mediaIn,$type,$remarks,$module,$status)
+    {
+        DB::insert('insert into media_history (media_id,added_by,action_type,remarks,module_type,added_on,status) values (?,?,?,?,?,?,?)', array($mediaIn->id, auth()->user()->id,
+        $type,$remarks,$module,Carbon::now()->toDateTimeString(),$status));
+    }
 
   protected function _getBranchId()
   {

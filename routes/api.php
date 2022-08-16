@@ -10,6 +10,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\MediaApiController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\JobController;
 
 /*
     |--------------------------------------------------------------------------
@@ -65,6 +66,10 @@ Route::group(['middleware' => ['api']], function() {
     Route::get('role/all', [RoleController::class, 'allRole']);
     ////Role End
     
+    ///Job List Start
+    Route::post('job/joblist', [JobController::class, 'joblist']);
+    Route::post('job/updateJobStatus', [JobController::class, 'updateJobStatus']);
+
     ///Branch Start
     Route::post('branch/branchlist', [BranchController::class, 'branchList']);
     Route::post('branch/add', [BranchController::class, 'addBranch']);
