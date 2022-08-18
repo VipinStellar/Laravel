@@ -112,6 +112,7 @@ class MediaController extends Controller
         $media =  $query->get();   
         if(count($media) > 0)
         {
+            $media[0]->total_drive = json_decode($media[0]->total_drive);
             if($media[0]->transfer_id != null)
             {
                 $media[0]->transferMedia =  MediaTransfer::find($media[0]->transfer_id);
@@ -250,6 +251,8 @@ class MediaController extends Controller
         $media->tampered_status = $request->input('tampered_status');
         $media->media_condition = $request->input('media_condition');
         $media->stage = $request->input('stage');
+        $media->media_size = $request->input('media_size');
+        $media->total_drive = json_encode($request->input('total_drive'));
         $media->peripherals_details = $request->input('peripherals_details');
         $media->last_updated  = Carbon::now()->toDateTimeString();
         $media->save();
@@ -333,6 +336,7 @@ class MediaController extends Controller
         $media->server_type = $request->input('server_type');
         $media->last_updated = Carbon::now()->toDateTimeString();
         $media->stage = $request->input('stage');
+        $media->total_drive = json_encode($request->input('total_drive'));
         $media->save();
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'assessment',$media->stage);
         //$this->_sendMailMediaStatusChanged($oldMedia,$media);
