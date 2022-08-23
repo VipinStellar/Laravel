@@ -73,4 +73,31 @@ class JobController extends Controller
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'assessment',$media->stage);
         return response()->json($job);
     }
+
+    public function getMediaJob($id)
+    {
+            $select = 'media.*,customer_detail.customer_name as customer_name';
+            $query = DB::table('media')->select(DB::raw($select));
+            $query->where('media.id', '=',$id);
+            $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
+            $media =  $query->get(); 
+            if(count($media) > 0)
+            {
+              $media[0]->allHistory = null;
+              $Sel = $select = 'job_status.*,stage.stage_name as stage_name';
+              $query1 = DB::table('job_status')->select(DB::raw($Sel));
+              $query1->where('job_status.media_id', '=',$media[0]->id);
+              $query1->leftJoin('stage','stage.id', '=','job_status.status');
+              $jobHis =  $query1->get(); 
+              if(count($jobHis) > 0)
+              {
+                 $media[0]->allHistory = $jobHis;
+              }
+               return response()->json($media[0]);
+            }
+            else
+            {
+            return response()->json(null);
+            }
+    }
 }
