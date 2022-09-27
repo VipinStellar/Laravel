@@ -114,6 +114,7 @@ class MediaController extends Controller
         {
             $media[0]->total_drive = json_decode($media[0]->total_drive);
             $media[0]->media_clone_detail = json_decode($media[0]->media_clone_detail);
+            $media[0]->media_sapre_detail = json_decode($media[0]->media_sapre_detail);
             if($media[0]->transfer_id != null)
             {
                 $media[0]->transferMedia =  MediaTransfer::find($media[0]->transfer_id);
@@ -338,6 +339,7 @@ class MediaController extends Controller
         $media->stage = $request->input('stage');
         $media->total_drive = json_encode($request->input('total_drive'));
         $media->media_clone_detail = json_encode($request->input('media_clone_detail'));
+        $media->media_sapre_detail = json_encode($request->input('media_sapre_detail'));
         $media->save();
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'assessment',$media->stage);
         //$this->_sendMailMediaStatusChanged($oldMedia,$media);
