@@ -335,6 +335,10 @@ class MediaController extends Controller
         $media->state_identified = $request->input('state_identified');
         $media->media_architecture = $request->input('media_architecture');
 		$media->drive_count = $request->input('drive_count');
+		$media->damage_drive = $request->input('damage_drive');
+		$media->media_damage_physical_serve = $request->input('media_damage_physical_serve');
+		$media->server_type = $request->input('server_type');
+		$media->media_group = $request->input('media_group');
         $media->last_updated = Carbon::now()->toDateTimeString();
         $media->stage = $request->input('stage');
         $media->total_drive = json_encode($request->input('total_drive'));
