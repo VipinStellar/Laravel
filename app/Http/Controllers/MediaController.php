@@ -15,7 +15,7 @@ use App\Models\User;
 use App\Models\Stage;
 use App\Models\Branch;
 use DB;
-
+use App\Models\FileUpload;
 class MediaController extends Controller
 {
 
@@ -115,6 +115,7 @@ class MediaController extends Controller
             $media[0]->total_drive = json_decode($media[0]->total_drive);
             $media[0]->media_clone_detail = json_decode($media[0]->media_clone_detail);
             $media[0]->media_sapre_detail = json_decode($media[0]->media_sapre_detail);
+            $media[0]->fileUpload = FileUpload::where('media_id',$media[0]->id)->get();
             if($media[0]->transfer_id != null)
             {
                 $media[0]->transferMedia =  MediaTransfer::find($media[0]->transfer_id);
@@ -379,6 +380,51 @@ class MediaController extends Controller
          $this->_insertMediaHistory($media,"transfer",$remarks,'media_in',$media->stage);
          return response()->json($transfer);
 
+    }
+
+    public function upload(Request $request)
+    {
+        if($request->hasfile('files'))
+        {
+
+            $file = $request->file('files');
+            $media_id = $request->input('media_id');
+            $path = $file->store('public/Upload/'.$media_id);
+            $name = $file->getClientOriginalName();
+            $save = new FileUpload();
+            $save->name = $name;
+            $save->media_id = $media_id;
+            $save->store_path= url('/')."/storage/app/".$path;
+            $save->save();
+
+             return response()->json([
+                        "success" => true,
+                        "message" => "File successfully uploaded",
+                        "data"=> FileUpload::where('media_id',$media_id)->get(),
+                    ]);
+
+        }
+        else
+        {
+            return response()->json([
+                        "success" => true,
+                        "message" => "File Not uploaded",
+                        "DDDD"=>$request
+                    ]);
+        }
+              
+    }
+
+    public function deleteFile($id)
+    {
+       
+        $file = FileUpload::find($id);
+        $fileNameArray = explode('/',$file->store_path);
+        $fileName = array_values(array_slice($fileNameArray, -1))[0];
+        $destinationPath = storage_path('app\public\Upload').'/'.$file->media_id.'/'.$fileName;
+        unlink($destinationPath);
+        DB::table('file_uploads')->where('id', $id)->delete();
+        return response()->json(["data"=>FileUpload::where('media_id',$file->media_id)->get()]);
     }
 
     // public function  sendmail()

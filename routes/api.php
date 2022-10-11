@@ -93,5 +93,7 @@ Route::group(['middleware' => ['api']], function() {
     Route::post('media/updateMediaAssessment', [MediaController::class, 'updateMediaAssessment']);
     Route::get('media/generateMediaCode/{id}', [MediaController::class, 'generateMediaCode']);
     Route::post('media/saveMediateam',[MediaController::class, 'updateMediaTeam']);
+    Route::post('media/upload', [MediaController::class, 'upload']);
+    Route::get('media/deleteFile/{id}', [MediaController::class,'deleteFile']);
     ///////End 
 });
