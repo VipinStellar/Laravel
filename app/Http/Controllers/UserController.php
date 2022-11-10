@@ -12,6 +12,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use DB;
+use Illuminate\Support\Facades\Hash;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class UserController extends Controller
 {
@@ -298,6 +300,24 @@ class UserController extends Controller
         return  $result;
     }
 
-
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'old_password' => 'required',
+            'new_password' => 'required|confirmed',
+        ]);
+        if(!Hash::check($request->old_password, auth()->user()->password)){
+            return response()->json(['password'=>"Old Password Not Match"], 400);
+         }
+        else
+        {
+            User::whereId(auth()->user()->id)->update([
+                'password' =>bcrypt($request->new_password)
+            ]);
+            $token = JWTAuth::getToken();
+            JWTAuth::setToken($token)->invalidate();
+            return response()->json(['password'=>"Password has been Changed"]);
+        }
+    }
 
 }

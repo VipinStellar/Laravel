@@ -44,6 +44,7 @@ Route::group(
 Route::group(['middleware' => ['api']], function() {
     /////User Start
     Route::post('user/add', [UserController::class, 'addUser']);
+    Route::post('user/changePassword', [UserController::class, 'changePassword']);
     Route::post('user/userlist', [UserController::class, 'userList']);
     Route::get('user/delete/{id}', [UserController::class, 'deleteUser']);
     Route::get('user/getrole', [UserController::class, 'getRole']);
