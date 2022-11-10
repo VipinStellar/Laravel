@@ -339,6 +339,7 @@ class MediaController extends Controller
 		$media->damage_drive = $request->input('damage_drive');
 		$media->media_damage_physical_serve = $request->input('media_damage_physical_serve');
 		$media->server_type = $request->input('server_type');
+		$media->backup_software = $request->input('backup_software');
 		$media->media_group = $request->input('media_group');
         $media->last_updated = Carbon::now()->toDateTimeString();
         $media->stage = $request->input('stage');
