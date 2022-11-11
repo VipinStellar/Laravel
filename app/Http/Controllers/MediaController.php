@@ -254,6 +254,7 @@ class MediaController extends Controller
         $media->tampered_status = $request->input('tampered_status');
         $media->media_condition = $request->input('media_condition');
         $media->media_status = $request->input('media_status');
+        $media->model_storage = $request->input('model_storage');
         $media->stage = $request->input('stage');
         $media->media_category = $request->input('media_category');
         $media->total_drive = json_encode($request->input('total_drive'));
