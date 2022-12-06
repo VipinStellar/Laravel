@@ -233,6 +233,30 @@ class UserController extends Controller
         return $this->dashbordCount(7,'No');
     }
 
+    public function getCountConfirm()
+    {
+        return $this->dashbordConfirm(7);
+    }
+
+    public function getCountConfirmNot()
+    {
+        return $this->dashbordConfirm(8);
+    }
+
+    public function dashbordConfirm($stage_id)
+    {
+        $branchId = $this->_getBranchId();
+        $branches = Branch::whereIn('id',$branchId)->get();
+        $result = array();
+        $media_query = "SELECT COUNT(id) AS count_id FROM media WHERE 1";
+        foreach($branches as $branch){
+            $result[$branch->branch_name]=array("branch_id"=>$branch->id,"stage_id"=>$stage_id);
+            $data = DB::select($media_query." AND branch_id = ".(int)$branch->id."  AND stage = ".$stage_id."");
+            $result[$branch->branch_name]['totalMedia']=$data[0]->count_id;            
+        }
+        return $result;
+    }
+
     public function dashbordCount($stage_id='',$recovery_possibility=''){
         $branchId = $this->_getBranchId();
         $branches = Branch::whereIn('id',$branchId)->get();

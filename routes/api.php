@@ -36,6 +36,7 @@ Route::group(
         Route::post('forgot_password', 'AuthController@forgotPassword');
         Route::post('mediaAnalysis', 'MediaApiController@mediaAnalysis');
         Route::post('mediaAssessment', 'MediaApiController@mediaAssessment');
+        Route::post('changeStatus', 'MediaApiController@changeStatus');
 
     }
 );
@@ -56,6 +57,8 @@ Route::group(['middleware' => ['api']], function() {
     Route::get('user/countAssessmentDone',[UserController::class,'getAssessmentDone']);
     Route::get('user/countCasePossible',[UserController::class,'getCasePossible']);
     Route::get('user/countCaseNotPossible',[UserController::class,'getCaseNotPossible']);
+    Route::get('user/countConfirm',[UserController::class,'getCountConfirm']);
+    Route::get('user/countConfirmNot',[UserController::class,'getCountConfirmNot']);
     Route::get('user/getSupervisor/{roleId}/{branchid}',[UserController::class, 'getSupervisor']);
     ////User End
     
