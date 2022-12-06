@@ -19,6 +19,39 @@ class JobController extends Controller
         $this->middleware('auth');
     }
 
+    public function jobconfirm(Request $request)
+    {
+      $statusInput = $request->input('statusId');
+      $branchInput = $request->input('branchId');
+      $branchId = implode(',',$this->_getBranchId());
+      $select = 'media.*,transfer_media.media_id as transfer_media_id,transfer_media.new_branch_id as new_branch_id, branch.branch_name as branch_name,customer_detail.customer_name as customer_name,stage.stage_name as stage_name';
+      $query = DB::table('media')->select(DB::raw($select));
+      $query->leftJoin("transfer_media","media.id", "=", DB::raw("transfer_media.media_id and media.transfer_id=transfer_media.id"));
+      $query->leftJoin('branch', 'branch.id', '=', 'media.branch_id');
+      $query->leftJoin('stage', 'stage.id', '=', 'media.stage');
+      $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
+      if(auth()->user()->role_id !=1)
+      $query->whereRaw("(media.branch_id in ($branchId) or transfer_media.new_branch_id in ($branchId))");
+      $query->whereRaw("media.stage > 4 and media.stage !=10");
+     // DB::enableQueryLog();
+     if($branchInput != null && $branchInput !='')
+      $query->whereRaw("(media.branch_id in ($branchInput) or transfer_media.new_branch_id in ($branchInput))");
+     if($statusInput != null && $statusInput !='')
+       $query->Where('media.stage', '=', $statusInput); 
+      $query->orderBy($request->input('orderBy'), $request->input('order'));
+      $pageSize = $request->input('pageSize');
+      $data = $query->paginate($pageSize,['*'],'page_no');
+      //$queries = DB::getQueryLog();print_r($queries);die;
+      $results = $data->items();
+      $count = $data->total();
+        $data = [
+            "draw" => $request->input('draw'),
+            "recordsTotal" => $count,
+            "data" => $results
+            ];
+            return json_encode($data);
+    }
+
     public function joblist(Request $request)
     {
         $statusId = $request->input('statusId');

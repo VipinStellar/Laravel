@@ -231,6 +231,8 @@ class MediaController extends Controller
     {
         if($type =="all")
         $stage = Stage::all();
+        else if($type == 'jobconfirm')
+        $stage = Stage::whereRaw("stage.id > 4 and stage.id !=10")->orderBy('stage_name','asc')->get();
         else
         $stage = Stage::where('type',$type)->get();
         return response()->json($stage);
@@ -344,6 +346,8 @@ class MediaController extends Controller
 		$media->media_group = $request->input('media_group');
         $media->last_updated = Carbon::now()->toDateTimeString();
         $media->stage = $request->input('stage');
+        $media->no_recovery_reason = $request->input('no_recovery_reason');
+        $media->no_recovery_reason_other = $request->input('no_recovery_reason_other');
         $media->encryption_name = $request->input('encryption_name');
         $media->extension_required = $request->input('extension_required');
         $media->extension_day = $request->input('extension_day');
