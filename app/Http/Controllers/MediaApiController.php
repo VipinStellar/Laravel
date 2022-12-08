@@ -66,7 +66,7 @@ class MediaApiController extends Controller
                  {
                     $media->stage = $rqst['stage'];
                     $media->save();
-                    $history = $this->_insertHistory("Media Update by Zoho user",$media->id,'assessment',$rqst['zoho_user'],$media->stage);
+                    $history = $this->_insertHistory("Media Update by Zoho user",$media->id,'assessment',$rqst['zoho_user'],$media->stage,'ChangeStatus');
                     $response['status'] = 'SUCCESS';
                     $response['msg'] = 'Media Status Changed';
                  } 
@@ -165,10 +165,10 @@ class MediaApiController extends Controller
        }
     }
 
-    function _insertHistory($remarks,$id,$module,$user,$status)
+    function _insertHistory($remarks,$id,$module,$user,$status,$action = 'edit')
     {
         $response =array();
-        $id = DB::table('media_history')->insertGetId(['media_id' => $id,'added_by' => $user,'action_type'=>'edit','remarks'=>$remarks,'module_type'=>$module,'added_on'=>Carbon::now()->toDateTimeString(),'status'=>$status]);
+        $id = DB::table('media_history')->insertGetId(['media_id' => $id,'added_by' => $user,'action_type'=>$action,'remarks'=>$remarks,'module_type'=>$module,'added_on'=>Carbon::now()->toDateTimeString(),'status'=>$status]);
         if($id){
             $response['msg'] = 'Data Submitted Successfully in MIMS';
             $response['status'] = 'SUCCESS';

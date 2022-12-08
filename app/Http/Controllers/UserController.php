@@ -243,6 +243,20 @@ class UserController extends Controller
         return $this->dashbordConfirm(8);
     }
 
+    public function getcountWait()
+    {
+        $branchId = $this->_getBranchId();
+        $branches = Branch::whereIn('id',$branchId)->get();
+        $result = array();
+        $media_query = "SELECT COUNT(id) AS count_id FROM media WHERE recovery_possibility = 'Yes'";
+        foreach($branches as $branch){
+            $result[$branch->branch_name]=array("branch_id"=>$branch->id,"stage_id"=>6);
+            $data = DB::select($media_query." AND branch_id = ".(int)$branch->id."  AND stage = 6");
+            $result[$branch->branch_name]['totalMedia']=$data[0]->count_id;            
+        }
+        return $result;
+    }
+
     public function dashbordConfirm($stage_id)
     {
         $branchId = $this->_getBranchId();

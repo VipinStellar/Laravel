@@ -356,6 +356,11 @@ class MediaController extends Controller
         $media->media_sapre_detail = json_encode($request->input('media_sapre_detail'));
         $media->save();
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'assessment',$media->stage);
+        if($media->recovery_possibility == 'Yes' && $media->stage == 5)
+        {
+            $media->stage = 6;
+            $media->save();
+        }
         //$this->_sendMailMediaStatusChanged($oldMedia,$media);
         return response()->json($media);
     }

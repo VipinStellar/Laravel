@@ -59,6 +59,7 @@ Route::group(['middleware' => ['api']], function() {
     Route::get('user/countCaseNotPossible',[UserController::class,'getCaseNotPossible']);
     Route::get('user/countConfirm',[UserController::class,'getCountConfirm']);
     Route::get('user/countConfirmNot',[UserController::class,'getCountConfirmNot']);
+    Route::get('user/countWait',[UserController::class,'getcountWait']);
     Route::get('user/getSupervisor/{roleId}/{branchid}',[UserController::class, 'getSupervisor']);
     ////User End
     
