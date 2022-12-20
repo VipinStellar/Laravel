@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use App\Models\Media;
 use App\Models\Job;
 use App\Models\Observation;
+use App\Models\MediaStatus;
 use DB;
 
 
@@ -106,6 +107,27 @@ class JobController extends Controller
         $job->save();
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'assessment',$media->stage);
         return response()->json($job);
+    }
+
+    public function updateMediaStatus(Request $request)
+    {
+        $media = new MediaStatus();
+        $media->media_id = $request->input('media_id');
+        $media->status = $request->input('status');
+        $media->user_id = auth()->user()->id;
+        $media->save();
+        return response()->json($media);
+    }
+
+    public function getStatusHistory($id)
+    {
+      $select = 'media_status.*,users.name as Username';
+      $query = DB::table('media_status')->select(DB::raw($select));
+      $query->where('media_status.media_id', '=',$id);
+      $query->leftJoin('users','users.id', '=','media_status.user_id');
+      $query->orderBy('id','asc');
+      $media =  $query->get();
+      return response()->json($media);
     }
 
     public function getMediaObservation($media_id)
