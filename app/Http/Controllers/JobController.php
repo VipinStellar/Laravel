@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon; 
 use App\Models\Media;
 use App\Models\Job;
+use App\Models\Observation;
 use DB;
 
 
@@ -105,6 +106,50 @@ class JobController extends Controller
         $job->save();
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'assessment',$media->stage);
         return response()->json($job);
+    }
+
+    public function getMediaObservation($media_id)
+    {
+      $select = 'media.id as mediaId,observation.*';
+      $query = DB::table('media')->select(DB::raw($select));
+      $query->where('media.id', '=',$media_id);
+      $query->leftJoin('observation','observation.media_id', '=','media.id');
+      $media =  $query->get();
+      return response()->json($media[0]);
+    }
+
+    public function updateObservation(Request $request)
+    {
+        $id = $request->input('id');
+        if($id == null)
+        $Obser = New Observation();
+        else
+        $Obser = Observation::find($id);
+        $Obser->media_id = $request->input('media_id');
+        $Obser->media_seal_condition = $request->input('media_seal_condition');
+        $Obser->p_c_b_found_faulty = $request->input('p_c_b_found_faulty');
+        $Obser->unique_rom_chip = $request->input('unique_rom_chip');
+        $Obser->p_c_b_original = $request->input('p_c_b_original');
+        $Obser->motor_found_faulty = $request->input('motor_found_faulty');
+        $Obser->p_c_b_found_tempered = $request->input('p_c_b_found_tempered');
+        $Obser->head_stack_assembly = $request->input('head_stack_assembly');
+        $Obser->found_foreign_particles_on_platters = $request->input('found_foreign_particles_on_platters');
+        $Obser->total_numbers_of_heads = $request->input('total_numbers_of_heads');
+        $Obser->total_number_of_platters = $request->input('total_number_of_platters');
+        $Obser->number_of_working_heads = $request->input('number_of_working_heads');
+        $Obser->number_of_non_working_heads = $request->input('number_of_non_working_heads');
+        $Obser->condition_of_platter_surface = $request->input('condition_of_platter_surface');
+        $Obser->condition_of_multiple_platter_surface = $request->input('condition_of_multiple_platter_surface');
+        $Obser->platter_cleaning_required_at_initial_stage = $request->input('platter_cleaning_required_at_initial_stage');
+        $Obser->p_c_b_rom_is_corrupted = $request->input('p_c_b_rom_is_corrupted');
+        $Obser->service_area_are_corrupted = $request->input('service_area_are_corrupted');
+        $Obser->imaging_process_at_initial_stage = $request->input('imaging_process_at_initial_stage');
+        $Obser->spare_required = $request->input('spare_required');
+        $Obser->save();
+        $media = Media::find($Obser->media_id);
+        $remarks = "Initial Physical Observation Updated";
+        $this->_insertMediaHistory($media,"edit",$remarks,'observation',$media->stage);
+        return response()->json($Obser);
     }
 
     public function getMediaJob($id)

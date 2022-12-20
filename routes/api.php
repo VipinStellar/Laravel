@@ -76,6 +76,8 @@ Route::group(['middleware' => ['api']], function() {
     Route::post('job/jobconfirm', [JobController::class, 'jobconfirm']);
     Route::post('job/updateJobStatus', [JobController::class, 'updateJobStatus']);
     Route::get('job/getmedia/{id}', [JobController::class, 'getMediaJob']);
+    Route::get('job/getObservation/{id}', [JobController::class, 'getMediaObservation']);
+    Route::post('job/updateObservation', [JobController::class, 'updateObservation']);
     ///Branch Start
     Route::post('branch/branchlist', [BranchController::class, 'branchList']);
     Route::post('branch/add', [BranchController::class, 'addBranch']);
