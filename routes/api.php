@@ -105,5 +105,8 @@ Route::group(['middleware' => ['api']], function() {
     Route::post('media/saveMediateam',[MediaController::class, 'updateMediaTeam']);
     Route::post('media/upload', [MediaController::class, 'upload']);
     Route::get('media/deleteFile/{id}', [MediaController::class,'deleteFile']);
+    Route::post('media/addDummy', [MediaController::class,'addDummyMedia']);
+    Route::post('media/updateDummy', [MediaController::class,'updateDummyMedia']);
+    Route::get('media/UpdateStausDummyMedia/{id}', [MediaController::class,'UpdateStausDummyMedia']);
     ///////End 
 });

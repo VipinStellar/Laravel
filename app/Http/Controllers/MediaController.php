@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Models\Stage;
 use App\Models\Branch;
 use DB;
+use App\Models\CustomerDetail;
 use App\Models\FileUpload;
 class MediaController extends Controller
 {
@@ -454,5 +455,54 @@ class MediaController extends Controller
 	// 			Log::error('Error Sending  Email :: '  . $e->getMessage());
 	// 		}
     // }
+
+    public function addDummyMedia(Request $request)
+    {
+        $cus = new CustomerDetail();
+        $cus->customer_name = $this->nameGenerate();
+        $cus->save();
+        $media = new Media();
+        $media->media_type = $request->input('media_type');
+        $media->branch_id = $request->input('branch_id');
+        $media->zoho_id = rand();
+        $media->zoho_user = $this->_getUserName(auth()->user()->id);
+        $media->created_on = Carbon::now()->toDateTimeString();
+        $media->customer_id = $cus->id;
+        $media->stage = 1;
+        $media->save();
+        $remarks = (!empty($media->zoho_user) ? "Case added by Zoho user ".$media->zoho_user : "Case added by Zoho user");
+        $this->_insertMediaHistory($media,"edit",$remarks,'media_in',$media->stage);
+        return response()->json($media);
+
+    }
+
+    public function updateDummyMedia(Request $request)
+    {
+        $media = Media::find($request->input('id'));
+        $media->job_id = strtoupper(substr($request->input('branch_name'), 0, 3)).'/'.rand(10,100); 
+        $media->zoho_job_id = rand();
+        $media->stage = 3;
+        $media->save();
+        $remarks = (!empty($this->_getUserName(auth()->user()->id)) ? "Data updated by Zoho user ".$this->_getUserName(auth()->user()->id) : "Data updated by Zoho user");
+        $this->_insertMediaHistory($media,"edit",$remarks,'assessment',$media->stage);
+        return response()->json($media);
+    }
+
+    function nameGenerate() {
+        $key = '';
+        $keys = array_merge(range('a', 'z'), range('A', 'Z'));
+        for($i=0; $i < 6; $i++) {
+            $key .= $keys[array_rand($keys)];
+        }
+        return strtoupper($key);
+    }
+
+    public function UpdateStausDummyMedia($id)
+    {
+        $media = Media::find($id);
+        $media->stage = 7;
+        $media->save();
+        return response()->json($media);
+    }
 
 }
