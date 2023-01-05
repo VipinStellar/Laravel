@@ -1,5 +1,7 @@
 <?php
+
 namespace App\Http\Controllers;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -8,10 +10,9 @@ use App\Models\Media;
 use App\Models\Job;
 use App\Models\Observation;
 use App\Models\MediaStatus;
-use App\Models\Gatepass;
-use App\Models\MediaTransfer;
-use App\Models\Branch;
 use DB;
+
+
 
 class JobController extends Controller
 {
@@ -198,59 +199,5 @@ class JobController extends Controller
             {
             return response()->json(null);
             }
-    }
-    public function GatePassList(Request $request){
-      $branchId = implode(',',$this->_getBranchId());
-      $select = 'transfer_media.*,media.zoho_id,media.media_type,media.case_type,media.stage as stage_id,customer_detail.customer_name,branch.branch_name as new_branch_name,stage.stage_name as stage_name,gatepass.id as gatepass_id,gatepass.gatepass_no';
-      $query = DB::table('transfer_media')->select(DB::raw($select));
-      $query->leftJoin("media","transfer_media.media_id", "=", "media.id");
-      $query->leftJoin("gatepass","transfer_media.id", "=", "gatepass.transfer_id");
-      $query->leftJoin('stage', 'media.stage', '=', 'stage.id');
-      $query->leftJoin('customer_detail','media.customer_id', '=','customer_detail.id');
-      $query->leftJoin('branch', 'transfer_media.new_branch_id', '=', 'branch.id');
-      $query->where('transfer_media.media_in_status', '=','0');
-      if(auth()->user()->role_id !=1)
-      $query->whereRaw("transfer_media.new_branch_id in ($branchId)");
-
-      $query->orderBy($request->input('orderBy'), $request->input('order'));
-      $pageSize = $request->input('pageSize');
-      $data = $query->paginate($pageSize,['*'],'page_no');
-      $results = $data->items();   
-      $count = $data->total();
-      $data = [
-        "draw"         => $request->input('draw'),
-        "recordsTotal" => $count,
-        "data"         => $results
-        ];
-        return json_encode($data);
-    }
-//date('Y-m-d', strtotime($startDate))." 00:00:00";  
-    public function addGatePass(Request $request){
-      $branch = Branch::find($request->input('dispatch_branch_id'));
-      $gatepass = new Gatepass();
-      $gatepass->transfer_id           = $request->input('transfer_id');
-      $gatepass->gatepass_type         = $request->input('gatepass_type');
-      $gatepass->expected_return_date  = $request->input('exptd_return_date');
-      $gatepass->requester_deptt	     = $request->input('requester_deppt');
-      $gatepass->requester_name	       = $request->input('requester_name');
-      $gatepass->dispatch_branch_id	   = $request->input('dispatch_branch_id');
-      $gatepass->dispatch_name	       = $request->input('dispatch_name');
-      $gatepass->dispatch_address      = $branch->address;
-      $gatepass->created_on            = Carbon::now()->toDateTimeString();
-      $gatepass->save();
-      $pass_no ='';
-      if($gatepass->gatepass_type !='' && $gatepass->gatepass_type =='Returnable'){
-        $pass_no ='R/';
-      }else{
-        $pass_no ='NR/';
-      }
-      $pass_no.=$branch->branch_code.'/'.str_pad($gatepass->id,4,"0",STR_PAD_LEFT);
-      $gatepass = Gatepass::find($gatepass->id);
-      $gatepass->gatepass_no = $pass_no;
-      $gatepass->save();
-      $media_transfer = MediaTransfer::find($request->input('transfer_id'));
-      $media_transfer-> gatepass_status = '1';
-      $media_transfer->save();
-      return response()->json('success');
     }
 }
