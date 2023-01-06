@@ -244,6 +244,7 @@ class MediaController extends Controller
         $id = $request->input('id');
         $media = Media::find($id);
         $oldMedia = $media;
+        $media->branch_type = $request->input('branch_type');
         $media->media_type = $request->input('media_type');
         $media->drive_count = $request->input('drive_count');
         $media->media_interface = $request->input('media_interface');

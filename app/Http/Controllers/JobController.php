@@ -131,7 +131,7 @@ class JobController extends Controller
 
     public function getMediaObservation($media_id)
     {
-      $select = 'media.id as mediaId,observation.*';
+      $select = 'media.id as mediaId,media.recovery_possibility as recovery_possibility,media.no_recovery_reason as no_recovery_reason,media.no_recovery_reason_other as no_recovery_reason_other,observation.*';
       $query = DB::table('media')->select(DB::raw($select));
       $query->where('media.id', '=',$media_id);
       $query->leftJoin('observation','observation.media_id', '=','media.id');
@@ -168,6 +168,10 @@ class JobController extends Controller
         $Obser->spare_required = $request->input('spare_required');
         $Obser->save();
         $media = Media::find($Obser->media_id);
+        $media->no_recovery_reason = $request->input('no_recovery_reason');
+        $media->no_recovery_reason_other = $request->input('no_recovery_reason_other');
+        $media->recovery_possibility = $request->input('recovery_possibility');
+        $media->save();
         $remarks = "Initial Physical Observation Updated";
         $this->_insertMediaHistory($media,"edit",$remarks,'observation',$media->stage);
         return response()->json($Obser);

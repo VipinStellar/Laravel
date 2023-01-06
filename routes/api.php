@@ -50,16 +50,7 @@ Route::group(['middleware' => ['api']], function() {
     Route::get('user/delete/{id}', [UserController::class, 'deleteUser']);
     Route::get('user/getrole', [UserController::class, 'getRole']);
     Route::get('user/getTeam', [UserController::class, 'getTeam']);
-    Route::get('user/countPre',[UserController::class,'getPreAnalysis']);
-    Route::get('user/countPreDone',[UserController::class,'getPreAnalysDone']);
-    Route::get('user/countMediaIn',[UserController::class,'getMediaIn']);
-    Route::get('user/countAssessmentPro',[UserController::class,'getAssessmentInProcess']);
-    Route::get('user/countAssessmentDone',[UserController::class,'getAssessmentDone']);
-    Route::get('user/countCasePossible',[UserController::class,'getCasePossible']);
-    Route::get('user/countCaseNotPossible',[UserController::class,'getCaseNotPossible']);
-    Route::get('user/countConfirm',[UserController::class,'getCountConfirm']);
-    Route::get('user/countConfirmNot',[UserController::class,'getCountConfirmNot']);
-    Route::get('user/countWait',[UserController::class,'getcountWait']);
+    Route::get('user/DashBaordCount',[UserController::class,'DashBaordCount']);
     Route::get('user/getSupervisor/{roleId}/{branchid}',[UserController::class, 'getSupervisor']);
     ////User End
     

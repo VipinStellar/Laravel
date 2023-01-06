@@ -211,36 +211,12 @@ class UserController extends Controller
    
     }
 
-    public function getPreAnalysis(){
-        return $this->dashbordCount(1);
-    }
-    public function getPreAnalysDone(){
-        return $this->dashbordCount(2);
-    }
-    public function getMediaIn(){
-        return $this->dashbordCount(3);
-    }
-    public function getAssessmentInProcess(){
-        return $this->dashbordCount(4);
-    }
-    public function getAssessmentDone(){
-        return $this->dashbordCount(5);
-    }
-    public function getCasePossible(){
-        return $this->dashbordCount(6,'Yes');
-    }
-    public function getCaseNotPossible(){
-        return $this->dashbordCount(7,'No');
-    }
-
-    public function getCountConfirm()
+    public function DashBaordCount()
     {
-        return $this->dashbordConfirm(7);
-    }
-
-    public function getCountConfirmNot()
-    {
-        return $this->dashbordConfirm(8);
+        return ['Pre'=>$this->dashbordCount(1),'PreDone'=>$this->dashbordCount(2),'MediaIn'=>$this->dashbordCount(3),
+                'AssInProcess'=>$this->dashbordCount(4),'AssInDone'=>$this->dashbordCount(5),'casePossible'=>$this->dashbordCount(6,'Yes'),
+                'caseNotPossible'=>$this->dashbordCount(7,'No'),'countConfirm'=>$this->dashbordConfirm(7),'countNotConfirm'=>$this->dashbordConfirm(8),
+                'countWait'=>$this->getcountWait()];
     }
 
     public function getcountWait()
