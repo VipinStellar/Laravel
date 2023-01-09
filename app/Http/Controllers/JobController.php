@@ -257,4 +257,11 @@ class JobController extends Controller
       $media_transfer->save();
       return response()->json('success');
     }
+
+    public function getObvertationDetails($mediaId)
+    {
+      $media = Media::find($mediaId);
+      $media->Obser = Observation::where('media_id',$mediaId)->first();
+      return response()->json($media);
+    }
 }
