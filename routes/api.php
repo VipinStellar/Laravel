@@ -12,6 +12,7 @@ use App\Http\Controllers\MediaApiController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\JobController;
 
+
 /*
     |--------------------------------------------------------------------------
     | API Routes
@@ -103,5 +104,7 @@ Route::group(['middleware' => ['api']], function() {
     ///////End 
     /// GatePass List
     Route::post('job/gatepasslist', [JobController::class, 'gatepasslist']);
-    Route::post('job/addgatepass', [JobController::class, 'addgatepass']);
+    Route::post('job/addgatepass', [JobController::class, 'addgatepass']);   
+    Route::get('job/downloadpass/{id}',[JobController::class,'downloadPass']);
+   
 });

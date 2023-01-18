@@ -12,6 +12,7 @@ use App\Models\Gatepass;
 use App\Models\MediaTransfer;
 use App\Models\Branch;
 use DB;
+use App\Models\GatepassId;
 
 class JobController extends Controller
 {
@@ -203,23 +204,41 @@ class JobController extends Controller
             return response()->json(null);
             }
     }
+   
+    public function getObvertationDetails($mediaId)
+    {
+      $media = Media::find($mediaId);
+      $media->Obser = Observation::where('media_id',$mediaId)->first();
+      return response()->json($media);
+    }
+
+    
     public function GatePassList(Request $request){
+      $search_passType = $request->input('passType');
+      $search_branchId = $request->input('branchId');
       $branchId = implode(',',$this->_getBranchId());
-      $select = 'transfer_media.*,media.zoho_id,media.media_type,media.case_type,media.stage as stage_id,customer_detail.customer_name,branch.branch_name as new_branch_name,stage.stage_name as stage_name,gatepass.id as gatepass_id,gatepass.gatepass_no';
+      $select = 'transfer_media.*,media.zoho_id,media.media_type,media.case_type,media.stage as stage_id,media.job_id,customer_detail.customer_name,branch.branch_name as new_branch_name,stage.stage_name as stage_name,gatepass.id as gatepass_id,gatepass.gatepass_no';
       $query = DB::table('transfer_media')->select(DB::raw($select));
       $query->leftJoin("media","transfer_media.media_id", "=", "media.id");
-      $query->leftJoin("gatepass","transfer_media.id", "=", "gatepass.transfer_id");
-      $query->leftJoin('stage', 'media.stage', '=', 'stage.id');
-      $query->leftJoin('customer_detail','media.customer_id', '=','customer_detail.id');
-      $query->leftJoin('branch', 'transfer_media.new_branch_id', '=', 'branch.id');
-      $query->where('transfer_media.media_in_status', '=','0');
+      $query->leftJoin("gatepass_id","transfer_media.id", "=", "gatepass_id.transfer_id");
+      $query->leftJoin("gatepass","gatepass_id.gatepass_id", "=", "gatepass.id");
+      $query->leftJoin("stage", "media.stage", "=", "stage.id");
+      $query->leftJoin("customer_detail","media.customer_id", "=","customer_detail.id");
+      $query->leftJoin("branch","transfer_media.new_branch_id", "=", "branch.id");
+      $query->where("transfer_media.media_in_status", "=","0");
       if(auth()->user()->role_id !=1)
       $query->whereRaw("transfer_media.new_branch_id in ($branchId)");
 
+      if($search_passType !=null && $search_passType !=''){
+        $query->where("gatepass.gatepass_type", "=", "".$search_passType."");
+      }
+      if($search_branchId !=null && $search_branchId !=''){
+        $query->whereRaw("(transfer_media.new_branch_id = ".$search_branchId.")");
+      }
       $query->orderBy($request->input('orderBy'), $request->input('order'));
       $pageSize = $request->input('pageSize');
       $data = $query->paginate($pageSize,['*'],'page_no');
-      $results = $data->items();   
+      $results = $data->items();  
       $count = $data->total();
       $data = [
         "draw"         => $request->input('draw'),
@@ -228,18 +247,31 @@ class JobController extends Controller
         ];
         return json_encode($data);
     }
-//date('Y-m-d', strtotime($startDate))." 00:00:00";  
+    
     public function addGatePass(Request $request){
-      $branch = Branch::find($request->input('dispatch_branch_id'));
+      //return response()->json($request);
+      $expected_return_date = $request->input('expected_return_date');
+      $address = '';
+      $branch_code = '';
+      if($request->input('dispatch_branch_id') == 0){
+        $address = $request->input('client_address');
+        $branch_code = '';
+      }else{
+        $branch = Branch::find($request->input('dispatch_branch_id'));
+        $address = $branch->address;
+        $branch_code = $branch->branch_code;
+      }
+      
       $gatepass = new Gatepass();
-      $gatepass->transfer_id           = $request->input('transfer_id');
       $gatepass->gatepass_type         = $request->input('gatepass_type');
-      $gatepass->expected_return_date  = $request->input('exptd_return_date');
-      $gatepass->requester_deptt	     = $request->input('requester_deppt');
-      $gatepass->requester_name	       = $request->input('requester_name');
-      $gatepass->dispatch_branch_id	   = $request->input('dispatch_branch_id');
-      $gatepass->dispatch_name	       = $request->input('dispatch_name');
-      $gatepass->dispatch_address      = $branch->address;
+      $gatepass->expected_return_date  = ($expected_return_date !=null && $expected_return_date !='' ? date('Y-m-d', strtotime($expected_return_date)):'');
+      $gatepass->requester_deptt       = $request->input('requester_deptt');
+      $gatepass->sender_name           = $request->input('sender_name');
+      $gatepass->dispatch_branch_id    = $request->input('dispatch_branch_id');
+      $gatepass->dispatch_name         = $request->input('dispatch_name');
+      $gatepass->dispatch_address      = $address;
+      $gatepass->other_assets          = (count($request->input('otherAssets')) > 0) ? json_encode($request->input('otherAssets')):'';
+      $gatepass->remarks               = $request->input('remarks');
       $gatepass->created_on            = Carbon::now()->toDateTimeString();
       $gatepass->save();
       $pass_no ='';
@@ -248,20 +280,51 @@ class JobController extends Controller
       }else{
         $pass_no ='NR/';
       }
-      $pass_no.=$branch->branch_code.'/'.str_pad($gatepass->id,4,"0",STR_PAD_LEFT);
+
+      $pass_no.= (($branch_code != '')? $branch_code.'/':'').str_pad($gatepass->id,4,"0",STR_PAD_LEFT);
       $gatepass = Gatepass::find($gatepass->id);
       $gatepass->gatepass_no = $pass_no;
       $gatepass->save();
-      $media_transfer = MediaTransfer::find($request->input('transfer_id'));
-      $media_transfer-> gatepass_status = '1';
-      $media_transfer->save();
+
+      $transfer_id = $request->input('transfer_id');
+      for($i=0; $i < count($transfer_id); $i++){
+        // insert for gatepass id table
+        $gatepass_id = new GatepassId();
+        $gatepass_id->transfer_id = $transfer_id[$i];
+        $gatepass_id->gatepass_id = $gatepass->id;
+        $gatepass_id->save();
+        // For Change Status
+        $media_transfer = MediaTransfer::find($transfer_id[$i]);
+        $media_transfer-> gatepass_status = '1';
+        $media_transfer->save();
+        // For Media History
+        $media = Media::find($media_transfer->media_id);
+        $remarks = "GatePass Created";
+        $this->_insertMediaHistory($media,"add",$remarks,'gatepass',$media->stage);
+      }
       return response()->json('success');
     }
+    
+    public function downloadPass($id){
 
-    public function getObvertationDetails($mediaId)
-    {
-      $media = Media::find($mediaId);
-      $media->Obser = Observation::where('media_id',$mediaId)->first();
-      return response()->json($media);
+      $select = 'gatepass.*,transfer_media.new_branch_id,branch.branch_name as dispatched_to';
+      $query  = DB::table('gatepass')->select(DB::raw($select));
+      $query->leftjoin("gatepass_id","gatepass.id", "=", "gatepass_id.gatepass_id");
+      $query->leftJoin("transfer_media","gatepass_id.transfer_id", "=", "transfer_media.id");
+      $query->leftJoin('branch', 'gatepass.dispatch_branch_id', '=', 'branch.id');
+      $query->where('gatepass.id', '=', $id);
+      $results = $query->take(1)->get();
+      $branch=Branch::find($results[0]->new_branch_id);
+      $results[0]->transfer_address = $branch->address;
+      $results[0]->other_assets = json_decode($results[0]->other_assets);
+      /// For gatepass Table data
+      
+      $select1 = 'media.media_type,media.job_id,media.media_serial,media.media_make,media.media_model';
+      $query1   = DB::table('gatepass_id')->select(DB::raw($select1));
+      $query1->leftJoin("transfer_media","gatepass_id.transfer_id", "=", "transfer_media.id");
+      $query1->leftJoin("media","transfer_media.media_id", "=", "media.id");
+      $query1->where('gatepass_id.gatepass_id', '=', $id);
+      $results[0]->material_detail = $query1->get();
+      return json_encode($results[0]);
     }
 }

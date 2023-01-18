@@ -18,9 +18,9 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Route::get('/downloadpass/{id}/{pass_no}', function () {
+// Route::get('/downloadpass/{id}', function () {
 //     return view('downloadpass');
 // });
 
 
- Route::resource('/downloadpass/{id}/{pass_no}', DownloadPass::class);
+ Route::resource('/downloadpass/{id}', DownloadPass::class);
