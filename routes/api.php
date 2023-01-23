@@ -11,6 +11,7 @@ use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\MediaApiController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\JobController;
+use App\Http\Controllers\InventoryController;
 
 
 /*
@@ -106,5 +107,8 @@ Route::group(['middleware' => ['api']], function() {
     Route::post('job/gatepasslist', [JobController::class, 'gatepasslist']);
     Route::post('job/addgatepass', [JobController::class, 'addgatepass']);   
     Route::get('job/downloadpass/{id}',[JobController::class,'downloadPass']);
-   
+     /// Inventory
+     Route::post('inventory/inventory-list', [InventoryController::class, 'inventoryList']);
+     Route::post('inventory/update', [InventoryController::class, 'inventorySave']);
+     Route::get('inventory/fatch/{id}', [InventoryController::class, 'getInventory']);
 });
