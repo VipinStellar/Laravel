@@ -132,7 +132,8 @@ class JobController extends Controller
 
     public function getMediaObservation($media_id)
     {
-      $select = 'media.id as mediaId,media.recovery_possibility as recovery_possibility,media.no_recovery_reason as no_recovery_reason,media.no_recovery_reason_other as no_recovery_reason_other,observation.*';
+      $select = 'media.id as mediaId,media.recovery_possibility as recovery_possibility,media.no_recovery_reason as no_recovery_reason,media.no_recovery_reason_other as no_recovery_reason_other,
+                media.media_type as media_type,media.notes as notes,media.required_days as required_days,media.recovery_percentage as recovery_percentage,media.recoverable_data as recoverable_data,observation.*';
       $query = DB::table('media')->select(DB::raw($select));
       $query->where('media.id', '=',$media_id);
       $query->leftJoin('observation','observation.media_id', '=','media.id');
@@ -167,13 +168,27 @@ class JobController extends Controller
         $Obser->service_area_are_corrupted = $request->input('service_area_are_corrupted');
         $Obser->imaging_process_at_initial_stage = $request->input('imaging_process_at_initial_stage');
         $Obser->spare_required = $request->input('spare_required');
+        $Obser->label1 = $request->input('label1');
+        $Obser->label2 = $request->input('label2');
+        $Obser->label3 = $request->input('label3');
+        $Obser->label4 = $request->input('label4');
+        $Obser->architacture = $request->input('architacture');
+        $Obser->internal_damage = $request->input('internal_damage');
+        $Obser->controller_name = $request->input('controller_name');
+        $Obser->encryption = $request->input('encryption');
+        $Obser->virtual_translater = $request->input('virtual_translater');
+        $Obser->media_interface = $request->input('media_interface');
         $Obser->save();
         $media = Media::find($Obser->media_id);
         $media->no_recovery_reason = $request->input('no_recovery_reason');
         $media->no_recovery_reason_other = $request->input('no_recovery_reason_other');
         $media->recovery_possibility = $request->input('recovery_possibility');
+        $media->recoverable_data = $request->input('recoverable_data');
+        $media->recovery_percentage = $request->input('recovery_percentage');
+        $media->required_days = $request->input('required_days');
+        $media->notes = $request->input('notes');
         $media->save();
-        $remarks = "Initial Physical Observation Updated";
+        $remarks = $request->input('remarks');
         $this->_insertMediaHistory($media,"edit",$remarks,'observation',$media->stage);
         return response()->json($Obser);
     }

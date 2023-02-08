@@ -353,6 +353,7 @@ class MediaController extends Controller
         $media->encryption_name = $request->input('encryption_name');
         $media->extension_required = $request->input('extension_required');
         $media->extension_day = $request->input('extension_day');
+        $media->notes = $request->input('notes');
         $media->total_drive = json_encode($request->input('total_drive'));
         $media->media_clone_detail = json_encode($request->input('media_clone_detail'));
         $media->media_sapre_detail = json_encode($request->input('media_sapre_detail'));

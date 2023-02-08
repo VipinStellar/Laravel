@@ -62,6 +62,10 @@ class InventoryController extends Controller
         $inventory->type = $request->input("type");
         $inventory->rack_num = $request->input("rack_num");
         $inventory->inventory_type = $request->input("inventory_type");
+        $inventory->received_from = $request->input("received_from");
+        $inventory->branch_id = $request->input("branch_id");
+        $inventory->job_id = $request->input("job_id");
+        $inventory->remarks = $request->input("remarks");
         $inventory->save();
         return response()->json(['message' => 'Item created successfully', 'inventory' => $inventory]);
 
