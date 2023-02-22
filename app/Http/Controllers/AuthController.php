@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Carbon\Carbon; 
 use DB;
+use App\Models\Role;
 use Tymon\JWTAuth\Facades\JWTAuth;
 class AuthController extends Controller
 {
@@ -83,11 +84,18 @@ class AuthController extends Controller
                 'supervisor_id' =>auth()->user()->supervisor_id,
                 'token'          => $token,
                 'token_type'     => 'bearer',
+                'assignRole' => $this->getRole(),
                 'token_validity' => ($this->guard()->factory()->getTTL()),
                // 'token_validity' => (5),
             ]
         );
 
+    }
+
+    public function getRole()
+    {
+        $role = Role::find(auth()->user()->role_id);
+        return $role;
     }
 
     protected function guard()

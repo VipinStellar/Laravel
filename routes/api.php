@@ -12,6 +12,7 @@ use App\Http\Controllers\MediaApiController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\RecoveryController;
 
 
 /*
@@ -111,4 +112,11 @@ Route::group(['middleware' => ['api']], function() {
      Route::post('inventory/inventory-list', [InventoryController::class, 'inventoryList']);
      Route::post('inventory/update', [InventoryController::class, 'inventorySave']);
      Route::get('inventory/fatch/{id}', [InventoryController::class, 'getInventory']);
+     
+     //Recovery
+     Route::get('recovery/fatch-recovery/{id}', [RecoveryController::class, '_getRecovery']);
+     Route::get('recovery/dept-user/{id}', [RecoveryController::class, 'getdeptUser']);
+     Route::post('recovery/update', [RecoveryController::class, 'recoverySave']);
+     Route::post('recovery/update-allot-job', [RecoveryController::class, 'updateAllotJob']);
+     Route::post('recovery/update-branch-clone-user', [RecoveryController::class, 'updateBranchCloneUser']);
 });
