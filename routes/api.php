@@ -88,12 +88,18 @@ Route::group(['middleware' => ['api']], function() {
     //////new Controller For media Strat
     Route::post('media/medialist', [MediaController::class, 'medialist']);
     Route::get('media/getmedia/{id}', [MediaController::class, 'getMedia']);
+    Route::get('media/all-history/{id}', [MediaController::class, 'getAllHistory']);
+    Route::get('media/transfer-history/{id}', [MediaController::class, 'getTransferHistory']);
+    Route::get('media/dept-user/{id}', [MediaController::class, 'getdeptUser']);
+    Route::post('media/update-allot-job', [MediaController::class, 'updateAllotJob']);
+
     Route::get('media/mediaHistory/{id}/{type}/{module}', [MediaController::class, 'getMediaHistory']);
     Route::get('media/mediauserlist/{id}', [MediaController::class, 'getMediaUserList']);
     Route::post('media/changemediaAssign', [MediaController::class, 'changeMediaAssign']);
     Route::get('media/mediastatus/{type}', [MediaController::class, 'getMediaStatus']);
     Route::post('media/updatepreAnalysis', [MediaController::class, 'updateMediaAnalysis']); 
     Route::get('media/getAllBranch', [MediaController::class, 'getAllBranch']);
+    Route::get('media/transfer-branch', [MediaController::class, 'transferBranch']);
     Route::post('media/sendMediatransfer/', [MediaController::class, 'sendMediatransfer']); 
     Route::post('media/updateMediaAssessment', [MediaController::class, 'updateMediaAssessment']);
     Route::get('media/generateMediaCode/{id}', [MediaController::class, 'generateMediaCode']);
@@ -119,4 +125,5 @@ Route::group(['middleware' => ['api']], function() {
      Route::post('recovery/update', [RecoveryController::class, 'recoverySave']);
      Route::post('recovery/update-allot-job', [RecoveryController::class, 'updateAllotJob']);
      Route::post('recovery/update-branch-clone-user', [RecoveryController::class, 'updateBranchCloneUser']);
+     Route::get('media/comman-history/{id}', [MediaController::class, '_commanHistory']);
 });

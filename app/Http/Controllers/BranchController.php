@@ -39,6 +39,7 @@ class BranchController extends Controller
         $branch->country_id = $request->input('country_id');
         $branch->state_name = $request->input('state_name');
         $branch->address = $request->input('address');
+        $branch->branch_type = $request->input('branch_type');
         $branch = $branch->save();
         return response()->json(['message' => 'Branch Update successfully', 'role' => $branch]);
     }

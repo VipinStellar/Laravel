@@ -103,13 +103,63 @@ class MediaController extends Controller
             return json_encode($data);
     }
 
+    public function getAllHistory($mediaId)
+    {
+        $select = 'media_history.*,users.name as user_name';
+        $query = DB::table('media_history')->select(DB::raw($select));
+        $query->where('media_history.media_id', '=',$mediaId);
+        $query->leftJoin('users', 'users.id', '=', 'media_history.added_by');
+        $query->orderBy('id','asc');
+        $history =  $query->get();
+        return response()->json($history);
+    }
+
+    public function getdeptUser($deptId)
+    {
+        $teamUser = User::where('team_id',$deptId)->get();
+        return response()->json($teamUser);
+    }
+
+    public function updateAllotJob(Request $request)
+    {
+        $media = Media::find($request->input('media_id'));
+        $media->user_id = $request->input('user_id');
+        $media->team_id = $request->input('team_id');
+        $media->save();
+        $remarks = $request->input('remarks');
+        $this->_insertMediaHistory($media,"edit",$remarks,'ASSIGN-CHANGE',$media->stage);
+    }
+
+    public function getTransferHistory($mediaId)
+    {
+        $select = 'transfer_media.*,old_branch.branch_name as oldName,new_branch.branch_name as newName';
+        $query = DB::table('transfer_media')->select(DB::raw($select));
+        $query->where('transfer_media.media_id', '=',$mediaId);
+        $query->leftJoin('branch as old_branch', 'transfer_media.old_branch_id', '=', 'old_branch.id');
+        $query->leftJoin('branch as new_branch', 'transfer_media.new_branch_id', '=', 'new_branch.id');
+        $history =  $query->get();
+        return response()->json($history);
+    }
+
+    protected function _getAllHistory($mediaId)
+    {
+        $select = 'media_history.*,users.name as user_name';
+        $query = DB::table('media_history')->select(DB::raw($select));
+        $query->where('media_history.media_id', '=',$mediaId);
+        $query->leftJoin('users', 'users.id', '=', 'media_history.added_by');
+        $query->orderBy('id','asc');
+        $history =  $query->get();
+        return $history;
+    }
+
     public function getMedia($id)
     {
-        $select = 'media.*,branch.branch_name as branch_name,customer_detail.customer_name as customer_name';
+        $select = 'media.*,branch.branch_name as branch_name,customer_detail.customer_name as customer_name,transfer_media.transfer_code';
         $query = DB::table('media')->select(DB::raw($select));
         $query->where('media.id', '=',$id);
         $query->leftJoin('branch', 'branch.id', '=', 'media.branch_id');
 	    $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
+        $query->leftJoin("transfer_media","transfer_media.id", "=", 'media.transfer_id');
         $media =  $query->get();   
         if(count($media) > 0)
         {
@@ -117,40 +167,6 @@ class MediaController extends Controller
             $media[0]->media_clone_detail = json_decode($media[0]->media_clone_detail);
             $media[0]->media_sapre_detail = json_decode($media[0]->media_sapre_detail);
             $media[0]->fileUpload = FileUpload::where('media_id',$media[0]->id)->get();
-            if($media[0]->transfer_id != null)
-            {
-                $media[0]->transferMedia =  MediaTransfer::find($media[0]->transfer_id);
-            }
-            $media[0]->preHis = null;
-            $media[0]->assHis = null;
-            $select1 = 'media_history.*,users.name as user_name,stage.stage_name as stage_name';
-            $query1 = DB::table('media_history')->select(DB::raw($select1));
-            $query1->where('media_history.media_id', '=',$id);
-            $query1->where('media_history.module_type', '=',"media_in");
-            $query1->where('media_history.action_type', '=',"edit");
-            $query1->leftJoin('users', 'users.id', '=', 'media_history.added_by');
-            $query1->leftJoin('stage', 'stage.id', '=', 'media_history.status');
-            $query1->orderBy('id','desc');
-            $query1->limit(1);
-            $preHistory =  $query1->get();
-            if(count($preHistory) > 0)
-            {
-                $media[0]->preHis = $preHistory;
-            }
-            $select2 = 'media_history.*,users.name as user_name,stage.stage_name as stage_name';
-            $query2 = DB::table('media_history')->select(DB::raw($select2));
-            $query2->where('media_history.media_id', '=',$id);
-            $query2->where('media_history.module_type', '=',"assessment");
-            $query2->where('media_history.action_type', '=',"edit");
-            $query2->leftJoin('users', 'users.id', '=', 'media_history.added_by');
-            $query2->leftJoin('stage', 'stage.id', '=', 'media_history.status');
-            $query2->orderBy('id','desc');
-            $query2->limit(1);
-            $assHistory =  $query2->get();
-            if(count($assHistory) > 0)
-            {
-                $media[0]->assHis = $assHistory;
-            }
             return response()->json($media[0]);
         }  
         else
@@ -170,6 +186,32 @@ class MediaController extends Controller
         $query->orderBy('id','asc');
         $history =  $query->get();
         return response()->json($history);
+    }
+
+    private function _history($id,$type,$module)
+    {
+        $select = 'media_history.*,users.name as user_name';
+        $query = DB::table('media_history')->select(DB::raw($select));
+        $query->where('media_history.media_id', '=',$id);
+        $query->where('media_history.action_type', '=',$type);
+        $query->where('media_history.module_type', '=',$module);
+        $query->leftJoin('users', 'users.id', '=', 'media_history.added_by');
+        $query->orderBy('id','asc');
+        $history =  $query->get();
+        return $history;
+    }
+
+    public function _commanHistory($media_id)
+    {
+        $his = ['obserHis'=>$this->_history($media_id,'edit','observation'),
+                'cloneCreation'=>$this->_history($media_id,'edit','cloneCreation'),
+                'dataEncrypted'=>$this->_history($media_id,'edit','dataEncrypted'),
+                'dataEncrypted'=>$this->_history($media_id,'edit','dataEncrypted'),
+                'recoverableData'=>$this->_history($media_id,'edit','recoverableData'),                
+                'allotJob'=>$this->_history($media_id,'edit','allotJob'),                
+                'branchClone'=>$this->_history($media_id,'edit','branchClone'),                
+                ];
+        return response()->json($his);
     }
 
     public function getMediaUserList($id)
@@ -265,7 +307,7 @@ class MediaController extends Controller
         $media->peripherals_details = $request->input('peripherals_details');
         $media->last_updated  = Carbon::now()->toDateTimeString();
         $media->save();
-        $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'media_in',$media->stage);
+        $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'PRE-ANALYSIS',$media->stage);
         //$this->_sendMailMediaStatusChanged($oldMedia,$media);
         return response()->json($media);
     }
@@ -273,6 +315,12 @@ class MediaController extends Controller
     public function getAllBranch()
     {
         $branchs = Branch::all();
+        return response()->json($branchs);
+    }
+
+    public function transferBranch()
+    {
+        $branchs = Branch::where('id', '!=', $this->_getBranchId())->get();
         return response()->json($branchs);
     }
 
@@ -286,6 +334,9 @@ class MediaController extends Controller
         $oldBranch = Branch::find($oldbranchId);
         $newBranch = Branch::find($request->input('branch_id'));
         $transfer = new MediaTransfer();
+        if(count($mediaOldid) > 0)
+        $transfer->old_branch_id = $oldbranchId;
+        else
         $transfer->old_branch_id = $media->branch_id;
         $transfer->new_branch_id = $request->input('branch_id');
         $transfer->reason = $request->input('reason');
@@ -297,10 +348,11 @@ class MediaController extends Controller
         $media->extension_required = $request->input('extension_required');
         $media->extension_day = $request->input('extension_day');
         $media->team_assign = 0;
+        $media->user_id = null;
         $media->save();
        // $sendMail = $this->_sendMailTransferMedia($transfer,$media);
         $remarks = "Media Transferred ".$oldBranch->branch_name." to ".$newBranch->branch_name." by ".$this->_getUserName(auth()->user()->id).".";
-        $this->_insertMediaHistory($media,"transfer",$remarks,'media_in',$media->stage);
+        $this->_insertMediaHistory($media,"edit",$remarks,'TRANSFER-MEDIA',$media->stage);
         return response()->json($media);
     }
 
@@ -358,10 +410,10 @@ class MediaController extends Controller
         $media->media_clone_detail = json_encode($request->input('media_clone_detail'));
         $media->media_sapre_detail = json_encode($request->input('media_sapre_detail'));
         $media->save();
-        $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'assessment',$media->stage);
-        if($media->recovery_possibility == 'Yes' && $media->stage == 5)
+        $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'INSPECTION',$media->stage);
+        if($media->recovery_possibility == 'Yes' && $media->stage == 6)
         {
-            $media->stage = 6;
+            $media->stage = 7;
             $media->save();
         }
         //$this->_sendMailMediaStatusChanged($oldMedia,$media);
@@ -374,7 +426,7 @@ class MediaController extends Controller
         $media = Media::find($transfer->media_id);
         if($transfer->new_branch_id != "23")
         {           
-            $transfer->transfer_code =  $media->job_id;
+            $transfer->transfer_code =  ($media->job_id ==null)?$media->zoho_id:$media->job_id;
         }
         else
         {
@@ -390,8 +442,8 @@ class MediaController extends Controller
         }
          $transfer->media_in_status = "1";
          $transfer->save();
-         $remarks = "Media In by ".$this->_getUserName(auth()->user()->id);
-         $this->_insertMediaHistory($media,"transfer",$remarks,'media_in',$media->stage);
+         $remarks = "Media In";
+         $this->_insertMediaHistory($media,"edit",$remarks,'TRANSFER-MEDIA',$media->stage);
          return response()->json($transfer);
 
     }
@@ -473,7 +525,7 @@ class MediaController extends Controller
         $media->stage = 1;
         $media->save();
         $remarks = (!empty($media->zoho_user) ? "Case added by Zoho user ".$media->zoho_user : "Case added by Zoho user");
-        $this->_insertMediaHistory($media,"edit",$remarks,'media_in',$media->stage);
+        $this->_insertMediaHistory($media,"edit",$remarks,'PRE-ANALYSIS',$media->stage);
         return response()->json($media);
 
     }
@@ -483,10 +535,10 @@ class MediaController extends Controller
         $media = Media::find($request->input('id'));
         $media->job_id = strtoupper(substr($request->input('branch_name'), 0, 3)).'/'.rand(10,100); 
         $media->zoho_job_id = rand();
-        $media->stage = 3;
+        $media->stage = 4;
         $media->save();
         $remarks = (!empty($this->_getUserName(auth()->user()->id)) ? "Data updated by Zoho user ".$this->_getUserName(auth()->user()->id) : "Data updated by Zoho user");
-        $this->_insertMediaHistory($media,"edit",$remarks,'assessment',$media->stage);
+        $this->_insertMediaHistory($media,"edit",$remarks,'INSPECTION',$media->stage);
         return response()->json($media);
     }
 
@@ -502,7 +554,7 @@ class MediaController extends Controller
     public function UpdateStausDummyMedia($id)
     {
         $media = Media::find($id);
-        $media->stage = 7;
+        $media->stage = 8;
         $media->save();
         return response()->json($media);
     }

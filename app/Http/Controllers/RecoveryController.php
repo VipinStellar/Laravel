@@ -47,9 +47,10 @@ class RecoveryController extends Controller
         $rec->save();
         $media = Media::find($rec->media_id);
         $media->no_recovery_reason = $request->input('no_recovery_reason');
+        $media->no_recovery_reason_other = $request->input('no_recovery_reason_other');
         $media->save();
         $remarks = $request->input('remarks');
-        $this->_insertMediaHistory($media,"edit",$remarks,'recovery',$media->stage);
+        $this->_insertMediaHistory($media,"edit",$remarks, $request->input('type'),$media->stage);
     }
 
     public function getdeptUser($deptId)
@@ -74,6 +75,6 @@ class RecoveryController extends Controller
         $media->user_id = $request->input('user_id');
         $media->save();
         $remarks = $request->input('remarks');
-        $this->_insertMediaHistory($media,"edit",$remarks,'branchClone',$media->stage);
+        $this->_insertMediaHistory($media,"edit",$remarks,'CLONE-TRANSFER',$media->stage);
     }
 }

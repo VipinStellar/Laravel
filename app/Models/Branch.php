@@ -13,6 +13,7 @@ class Branch extends Model
         'branch_name',
         'country_id',
         'state_name',
-        'address'
+        'address',
+        'branch_type'
     ];
 }

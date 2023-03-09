@@ -59,18 +59,16 @@ class JobController extends Controller
         $statusId = $request->input('statusId');
         $branchIdReq = $request->input('branchId');
         $branchId = implode(',',$this->_getBranchId());
-        $select = 'media.*,transfer_media.media_id as transfer_media_id,transfer_media.new_branch_id as new_branch_id, branch.branch_name as branch_name,customer_detail.customer_name as customer_name,stage.stage_name as stage_name,job_status.status as jobStatus';
+        $select = 'media.*,transfer_media.media_id as transfer_media_id,transfer_media.new_branch_id as new_branch_id,transfer_media.transfer_code as transfer_code, branch.branch_name as branch_name,customer_detail.customer_name as customer_name,stage.stage_name as stage_name';
         $query = DB::table('media')->select(DB::raw($select));
         $query->leftJoin("transfer_media","media.id", "=", DB::raw("transfer_media.media_id and media.transfer_id=transfer_media.id"));
         $query->leftJoin('branch', 'branch.id', '=', 'media.branch_id');
         $query->leftJoin('stage', 'stage.id', '=', 'media.stage');
-        $query->leftJoin(DB::raw('(select * FROM job_status js where js.id IN (select max(js1.id) from job_status js1 where js1.media_id = js.media_id)) job_status'), function($join) { $join->on('job_status.media_id', '=', 'media.id');});
+       // $query->leftJoin(DB::raw('(select * FROM job_status js where js.id IN (select max(js1.id) from job_status js1 where js1.media_id = js.media_id)) job_status'), function($join) { $join->on('job_status.media_id', '=', 'media.id');});
         $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
         if(auth()->user()->role_id !=1)
         $query->whereRaw("(media.branch_id in ($branchId) or transfer_media.new_branch_id in ($branchId))");
 
-        if($statusId != null && $statusId !='')
-          $query->Where('job_status.status', '=', $statusId); 
         if($branchIdReq != null && $branchIdReq !='')
           $query->whereRaw("(media.branch_id in ($branchIdReq) or transfer_media.new_branch_id in ($branchIdReq))");
 
@@ -80,11 +78,9 @@ class JobController extends Controller
         $results = $data->items();
         $i = 0;
         foreach ($results as $result) {
-          $result->jobStatusId = $result->jobStatus;
             if($result->new_branch_id !=null)
             $result->new_branch_id =$this->_getBranchName($result->new_branch_id);
-            if($result->jobStatus !=null)
-            $result->jobStatus =$this->_getStageName($result->jobStatus);
+         
             $i++;
         }
         $count = $data->total();
@@ -189,7 +185,7 @@ class JobController extends Controller
         $media->notes = $request->input('notes');
         $media->save();
         $remarks = $request->input('remarks');
-        $this->_insertMediaHistory($media,"edit",$remarks,'observation',$media->stage);
+        $this->_insertMediaHistory($media,"edit",$remarks,'OBSERVATION',$media->stage);
         return response()->json($Obser);
     }
 
