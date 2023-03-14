@@ -11,6 +11,7 @@ use App\Models\BranchRelated;
 use App\Models\MediaTeam;
 use App\Models\MediaHistoty;
 use App\Models\MediaTransfer;
+use App\Models\Gatepass;
 use App\Models\User;
 use App\Models\Stage;
 use App\Models\Branch;
@@ -126,7 +127,7 @@ class MediaController extends Controller
         $media->user_id = $request->input('user_id');
         $media->team_id = $request->input('team_id');
         $media->save();
-        $remarks = $request->input('remarks');
+        $remarks = "<b>Department Name : </b>".$this->_getTeamName($media->team_id)."<br>"."<b>User Name : </b>".$this->_getUserName($media->user_id)."<br>"."<b>Reason : </b>".$request->input('remarks');
         $this->_insertMediaHistory($media,"edit",$remarks,'ASSIGN-CHANGE',$media->stage);
     }
 
@@ -320,7 +321,7 @@ class MediaController extends Controller
 
     public function transferBranch()
     {
-        $branchs = Branch::where('id', '!=', $this->_getBranchId())->get();
+        $branchs = Branch::whereNotIn('id',$this->_getBranchId())->get();
         return response()->json($branchs);
     }
 
@@ -420,7 +421,17 @@ class MediaController extends Controller
         return response()->json($media);
     }
 
-    public function generateMediaCode($id)
+    public function updateGatePassRef(Request $request)
+    {
+            $mediaId =  $request->input('transfer_id');
+            $gate = Gatepass::find($request->input('id'));
+            $gate->ref_name_num = $request->input('ref_name_num');
+            $gate->save();
+             $sss = $this->generateMediaCode($mediaId);
+    }
+    
+
+    protected function generateMediaCode($id)
     {
         $transfer = MediaTransfer::find($id);
         $media = Media::find($transfer->media_id);

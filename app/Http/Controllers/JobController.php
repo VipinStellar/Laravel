@@ -59,11 +59,15 @@ class JobController extends Controller
         $statusId = $request->input('statusId');
         $branchIdReq = $request->input('branchId');
         $branchId = implode(',',$this->_getBranchId());
-        $select = 'media.*,transfer_media.media_id as transfer_media_id,transfer_media.new_branch_id as new_branch_id,transfer_media.transfer_code as transfer_code, branch.branch_name as branch_name,customer_detail.customer_name as customer_name,stage.stage_name as stage_name';
+        $select = 'media.*,transfer_media.media_id as transfer_media_id,transfer_media.gatepass_status as getpasStatus,
+                   transfer_media.new_branch_id as new_branch_id,transfer_media.transfer_code as transfer_code,
+                   branch.branch_name as branch_name,customer_detail.customer_name as customer_name,stage.stage_name as stage_name,
+                   gatepass.id as getpassId,gatepass.ref_name_num as ref_name';
         $query = DB::table('media')->select(DB::raw($select));
         $query->leftJoin("transfer_media","media.id", "=", DB::raw("transfer_media.media_id and media.transfer_id=transfer_media.id"));
         $query->leftJoin('branch', 'branch.id', '=', 'media.branch_id');
         $query->leftJoin('stage', 'stage.id', '=', 'media.stage');
+        $query->leftjoin("gatepass",\DB::raw("FIND_IN_SET(media.id,gatepass.media_id)"),">",\DB::raw("'0'"));
        // $query->leftJoin(DB::raw('(select * FROM job_status js where js.id IN (select max(js1.id) from job_status js1 where js1.media_id = js.media_id)) job_status'), function($join) { $join->on('job_status.media_id', '=', 'media.id');});
         $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
         if(auth()->user()->role_id !=1)
@@ -227,6 +231,7 @@ class JobController extends Controller
     public function GatePassList(Request $request){
       $search_passType = $request->input('passType');
       $search_branchId = $request->input('branchId');
+      $term = $request->input('term');
       $branchId = implode(',',$this->_getBranchId());
       $select = 'transfer_media.*,media.zoho_id,media.media_type,media.case_type,media.stage as stage_id,media.job_id,customer_detail.customer_name,branch.branch_name as new_branch_name,stage.stage_name as stage_name,gatepass.id as gatepass_id,gatepass.gatepass_no';
       $query = DB::table('transfer_media')->select(DB::raw($select));
@@ -236,7 +241,7 @@ class JobController extends Controller
       $query->leftJoin("stage", "media.stage", "=", "stage.id");
       $query->leftJoin("customer_detail","media.customer_id", "=","customer_detail.id");
       $query->leftJoin("branch","transfer_media.new_branch_id", "=", "branch.id");
-      $query->where("transfer_media.media_in_status", "=","0");
+      //$query->where("transfer_media.media_in_status", "=","0");
       if(auth()->user()->role_id !=1)
       $query->whereRaw("transfer_media.new_branch_id in ($branchId)");
 
@@ -245,6 +250,10 @@ class JobController extends Controller
       }
       if($search_branchId !=null && $search_branchId !=''){
         $query->whereRaw("(transfer_media.new_branch_id = ".$search_branchId.")");
+      }
+      if($term != null && $term !='')
+      {
+        $query->whereRaw("(media.zoho_id = ".$term." or media.job_id = ".$term.")");
       }
       $query->orderBy($request->input('orderBy'), $request->input('order'));
       $pageSize = $request->input('pageSize');
@@ -260,7 +269,6 @@ class JobController extends Controller
     }
     
     public function addGatePass(Request $request){
-      //return response()->json($request);
       $expected_return_date = $request->input('expected_return_date');
       $address = '';
       $branch_code = '';
@@ -275,6 +283,8 @@ class JobController extends Controller
       
       $gatepass = new Gatepass();
       $gatepass->gatepass_type         = $request->input('gatepass_type');
+      $gatepass->ref_name_num         = $request->input('ref_name_num');
+      $gatepass->transfer_mode         = $request->input('transfer_mode');
       $gatepass->expected_return_date  = ($expected_return_date !=null && $expected_return_date !='' ? date('Y-m-d', strtotime($expected_return_date)):'');
       $gatepass->requester_deptt       = $request->input('requester_deptt');
       $gatepass->sender_name           = $request->input('sender_name');
@@ -284,6 +294,7 @@ class JobController extends Controller
       $gatepass->other_assets          = (count($request->input('otherAssets')) > 0) ? json_encode($request->input('otherAssets')):'';
       $gatepass->remarks               = $request->input('remarks');
       $gatepass->created_on            = Carbon::now()->toDateTimeString();
+      $gatepass->media_id              = implode(',',$request->input('media_id'));
       $gatepass->save();
       $pass_no ='';
       if($gatepass->gatepass_type !='' && $gatepass->gatepass_type =='Returnable'){
@@ -311,7 +322,7 @@ class JobController extends Controller
         // For Media History
         $media = Media::find($media_transfer->media_id);
         $remarks = "GatePass Created";
-        $this->_insertMediaHistory($media,"add",$remarks,'gatepass',$media->stage);
+        $this->_insertMediaHistory($media,"add",$remarks,'GATEPASS-CREATED',$media->stage);
       }
       return response()->json('success');
     }

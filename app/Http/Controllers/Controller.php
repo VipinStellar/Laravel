@@ -15,6 +15,8 @@ use App\Models\Stage;
 use App\Models\BranchRelated;
 use Carbon\Carbon; 
 use DB;
+use App\Models\MediaTeam;
+
 class Controller extends BaseController
 {
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
@@ -44,6 +46,12 @@ protected function _getPaginatedResult($query,$request)
   {
       $user = User::find($userId);
       return $user->name;
+  }
+
+  protected function _getTeamName($id)
+  {
+      $team = MediaTeam::find($id);
+      return $team->team_name;
   }
 
   protected function _getStageName($id)
