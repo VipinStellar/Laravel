@@ -347,12 +347,12 @@ class MediaController extends Controller
         $media->transfer_id = $transfer->id;
         $media->team_id = 0;
         $media->extension_required = $request->input('extension_required');
-        $media->extension_day = $request->input('extension_day');
+        $media->extension_day = $media->extension_day + $request->input('extension_day');
         $media->team_assign = 0;
         $media->user_id = null;
         $media->save();
        // $sendMail = $this->_sendMailTransferMedia($transfer,$media);
-        $remarks = "Media Transferred ".$oldBranch->branch_name." to ".$newBranch->branch_name." by ".$this->_getUserName(auth()->user()->id).".";
+        $remarks = "Media Transferred From".$oldBranch->branch_name." to ".$newBranch->branch_name." by ".$this->_getUserName(auth()->user()->id).".";
         $this->_insertMediaHistory($media,"edit",$remarks,'TRANSFER-MEDIA',$media->stage);
         return response()->json($media);
     }
@@ -405,7 +405,7 @@ class MediaController extends Controller
         $media->no_recovery_reason_other = $request->input('no_recovery_reason_other');
         $media->encryption_name = $request->input('encryption_name');
         $media->extension_required = $request->input('extension_required');
-        $media->extension_day = $request->input('extension_day');
+        $media->extension_day =  $request->input('extension_day');
         $media->notes = $request->input('notes');
         $media->total_drive = json_encode($request->input('total_drive'));
         $media->media_clone_detail = json_encode($request->input('media_clone_detail'));
@@ -415,6 +415,11 @@ class MediaController extends Controller
         if($media->recovery_possibility == 'Yes' && $media->stage == 6)
         {
             $media->stage = 7;
+            $media->save();
+        }
+        if($media->recovery_possibility == 'No' && $media->stage == 6)
+        {
+            $media->stage = 9;
             $media->save();
         }
         //$this->_sendMailMediaStatusChanged($oldMedia,$media);

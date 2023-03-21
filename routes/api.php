@@ -126,5 +126,6 @@ Route::group(['middleware' => ['api']], function() {
      Route::post('recovery/update', [RecoveryController::class, 'recoverySave']);
      Route::post('recovery/update-allot-job', [RecoveryController::class, 'updateAllotJob']);
      Route::post('recovery/update-branch-clone-user', [RecoveryController::class, 'updateBranchCloneUser']);
+     Route::post('recovery/update-extension', [RecoveryController::class, 'updateEextension']);
      Route::get('media/comman-history/{id}', [MediaController::class, '_commanHistory']);
 });

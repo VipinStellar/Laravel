@@ -24,6 +24,11 @@ class RecoveryController extends Controller
     {
         $recovery = Media::find($media_id);
         $recovery->recoveryObj = Recovery::where('media_id',$media_id)->first();
+        if($recovery->recoveryObj != null)
+        {
+            $recovery->recoveryObj['clone_required_encrypted_data'] = json_decode($recovery->recoveryObj['clone_required_encrypted_data']);
+            $recovery->recoveryObj['clone_required_recoverable_data'] = json_decode($recovery->recoveryObj['clone_required_recoverable_data']);
+        }
         return response()->json($recovery);
     }
 
@@ -44,10 +49,18 @@ class RecoveryController extends Controller
         $rec->decryption_data = $request->input('decryption_data');
         $rec->decryption_data_details = $request->input('decryption_data_details');
         $rec->recoverable_data = $request->input('recoverable_data');
+        $rec->clone_branch = $request->input('clone_branch');
+        $rec->clone_required_encrypted = $request->input('clone_required_encrypted');
+        $rec->clone_required_encrypted_data = json_encode($request->input('clone_required_encrypted_data'));
+        $rec->clone_required_recoverable = $request->input('clone_required_recoverable');
+        $rec->clone_required_recoverable_data = json_encode($request->input('clone_required_recoverable_data'));
         $rec->save();
         $media = Media::find($rec->media_id);
         $media->no_recovery_reason = $request->input('no_recovery_reason');
         $media->no_recovery_reason_other = $request->input('no_recovery_reason_other');
+        if(($request->input('clone_creation') =='No') || ($request->input('data_encrypted') =='Yes' && $request->input('decryption_data')=='No') 
+            || ($request->input('recoverable_data') =='No' && $request->input('type')=='RECOVERABLE-DATA'))
+            $media->stage = 11;
         $media->save();
         $remarks = $request->input('remarks');
         $this->_insertMediaHistory($media,"edit",$remarks, $request->input('type'),$media->stage);
@@ -76,5 +89,16 @@ class RecoveryController extends Controller
         $media->save();
         $remarks = $request->input('remarks');
         $this->_insertMediaHistory($media,"edit",$remarks,'CLONE-TRANSFER',$media->stage);
+    }
+
+    public function updateEextension(Request $request)
+    {
+        $media = Media::find($request->input('media_id'));
+        if($request->input('extension_day') !='Not Applicable')
+        $media->extension_day = $request->input('extension_day') + $media->extension_day;
+        else
+        $media->extension_day  = $request->input('extension_day');
+        $media->save();
+        $this->_insertMediaHistory($media,"edit",$request->input('remarks'),$request->input('type'),$media->stage);
     }
 }
