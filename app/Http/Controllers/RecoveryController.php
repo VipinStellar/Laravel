@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon; 
 use App\Models\Media;
 use App\Models\Recovery;
+use App\Models\MediaDirectory;
 use App\Models\User;
 use DB;
 
@@ -31,6 +32,44 @@ class RecoveryController extends Controller
         }
         return response()->json($recovery);
     }
+
+    public function getDirectory($media_id)
+    {
+       $MediaDirectory =  MediaDirectory::where('media_id',$media_id)->first();
+       if($MediaDirectory != null)
+       return response()->json($MediaDirectory);
+       else
+       return response()->json();
+    }
+
+    public function saveDirectory(Request $request)
+    {
+        $id = $request->input('id');
+        if($id == null)
+        $dir = New MediaDirectory();
+        else
+        $dir = MediaDirectory::find($id);
+        $dir->media_id = $request->input('media_id');
+        $dir->total_file = $request->input('total_file');
+        $dir->total_data_size = $request->input('total_data_size');
+        $dir->total_mail = $request->input('total_mail');
+        $dir->total_mail_size = $request->input('total_mail_size');
+        $dir->mail_data = $request->input('mail_data');
+        $dir->data_store_media = $request->input('data_store_media');
+        $dir->directory_listing = $request->input('directory_listing');
+        $dir->data_delivery = $request->input('data_delivery');
+        $dir->email_notification = $request->input('email_notification');
+        $dir->total_data_size_format = $request->input('total_data_size_format');
+        $dir->total_mail_size_format = $request->input('total_mail_size_format');
+        $dir->save();
+        $media = Media::find($dir->media_id);
+        $media->stage = 12;
+        $media->save();
+        $remarks = $request->input('remarks');
+        $this->_insertMediaHistory($media,"edit",$remarks, $request->input('type'),$media->stage);
+
+    }
+
 
     public function recoverySave(Request $request)
     {
@@ -61,6 +100,8 @@ class RecoveryController extends Controller
         if(($request->input('clone_creation') =='No') || ($request->input('data_encrypted') =='Yes' && $request->input('decryption_data')=='No') 
             || ($request->input('recoverable_data') =='No' && $request->input('type')=='RECOVERABLE-DATA'))
             $media->stage = 11;
+        if($request->input('recoverable_data') =='Yes' && $request->input('clone_branch')!=null  &&  $request->input('type')=='RECOVERABLE-DATA')
+        $media->user_id = null;
         $media->save();
         $remarks = $request->input('remarks');
         $this->_insertMediaHistory($media,"edit",$remarks, $request->input('type'),$media->stage);

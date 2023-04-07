@@ -128,4 +128,7 @@ Route::group(['middleware' => ['api']], function() {
      Route::post('recovery/update-branch-clone-user', [RecoveryController::class, 'updateBranchCloneUser']);
      Route::post('recovery/update-extension', [RecoveryController::class, 'updateEextension']);
      Route::get('media/comman-history/{id}', [MediaController::class, '_commanHistory']);
+     Route::get('recovery/fatch-directory/{id}', [RecoveryController::class, 'getDirectory']);
+     Route::post('recovery/update-directory', [RecoveryController::class, 'saveDirectory']);
+     
 });
