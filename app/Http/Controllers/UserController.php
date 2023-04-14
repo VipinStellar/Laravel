@@ -211,13 +211,7 @@ class UserController extends Controller
    
     }
 
-    public function DashBaordCount()
-    {
-        return ['Pre'=>$this->dashbordCount(1),'PreDone'=>$this->dashbordCount(2),'MediaIn'=>$this->dashbordCount(3),
-                'AssInProcess'=>$this->dashbordCount(4),'AssInDone'=>$this->dashbordCount(5),'casePossible'=>$this->dashbordCount(6,'Yes'),
-                'caseNotPossible'=>$this->dashbordCount(7,'No'),'countConfirm'=>$this->dashbordConfirm(7),'countNotConfirm'=>$this->dashbordConfirm(8),
-                'countWait'=>$this->getcountWait()];
-    }
+   
 
     public function getcountWait()
     {
@@ -226,8 +220,8 @@ class UserController extends Controller
         $result = array();
         $media_query = "SELECT COUNT(id) AS count_id FROM media WHERE recovery_possibility = 'Yes'";
         foreach($branches as $branch){
-            $result[$branch->branch_name]=array("branch_id"=>$branch->id,"stage_id"=>6);
-            $data = DB::select($media_query." AND branch_id = ".(int)$branch->id."  AND stage = 6");
+            $result[$branch->branch_name]=array("branch_id"=>$branch->id,"stage_id"=>7);
+            $data = DB::select($media_query." AND branch_id = ".(int)$branch->id."  AND stage = 7");
             $result[$branch->branch_name]['totalMedia']=$data[0]->count_id;            
         }
         return $result;
@@ -247,6 +241,14 @@ class UserController extends Controller
         return $result;
     }
 
+    public function DashBaordCount()
+    {
+        return ['Pre'=>$this->dashbordCount(1),'PreDone'=>$this->dashbordCount(3),'MediaIn'=>$this->dashbordCount(4),
+                'AssInProcess'=>$this->dashbordCount(5),'AssInDone'=>$this->dashbordCount(6),'casePossible'=>$this->dashbordCount(7,'Yes'),
+                'caseNotPossible'=>$this->dashbordCount(8,'No'),'countConfirm'=>$this->dashbordConfirm(8),'countNotConfirm'=>$this->dashbordConfirm(9),
+                'countWait'=>$this->getcountWait()];
+    }
+
     public function dashbordCount($stage_id='',$recovery_possibility=''){
         $branchId = $this->_getBranchId();
         $branches = Branch::whereIn('id',$branchId)->get();
@@ -258,30 +260,31 @@ class UserController extends Controller
 
                 $result[$branch->branch_name]=array("branch_id"=>$branch->id,"stage_id"=>$stage_id,"user_id"=>auth()->user()->id);
              
-                if($stage_id==2 || $stage_id==4 || $stage_id==5){
+                if($stage_id==1){
+                    $media_stage = " AND stage IN (1,2)";
+                    $transfer_stage = " AND m.stage IN (1,2)";
+                    $media_month = "";
+                    $transfer_month = "";
+                }
+                elseif($stage_id==3 || $stage_id==5 || $stage_id==6){
                     $media_stage = " AND stage = ".(int)$stage_id."";
                     $transfer_stage = " AND m.stage = ".(int)$stage_id."";
                     $media_month = "";
                     $transfer_month = "";
                 } 
-                elseif($stage_id==1){
-                    $media_stage = " AND stage IN (1,10)";
-                    $transfer_stage = " AND m.stage IN (1,10)";
-                    $media_month = "";
-                    $transfer_month = "";
-                }elseif($stage_id==3){
-                    $media_stage = " AND stage NOT IN (1,2)";
-                    $transfer_stage = " AND m.stage NOT IN (1,2)";
+                elseif($stage_id==4){
+                    $media_stage = " AND stage NOT IN (1,2,3)";
+                    $transfer_stage = " AND m.stage NOT IN (1,2,3)";
                     $media_month = " AND created_on >= DATE_FORMAT(NOW(), '%Y-%m-01')";
                     $transfer_month = " AND m.created_on >= DATE_FORMAT(NOW(), '%Y-%m-01')";
-                } elseif($stage_id==6 && $recovery_possibility!=''){
-                    $media_stage = " AND stage = 5 AND recovery_possibility ='".$recovery_possibility."' ";
-                    $transfer_stage = " AND m.stage = 5 AND m.recovery_possibility ='".$recovery_possibility."'";
+                } elseif($stage_id==7 && $recovery_possibility!=''){
+                    $media_stage = " AND stage = 6 AND recovery_possibility ='".$recovery_possibility."' ";
+                    $transfer_stage = " AND m.stage = 6 AND m.recovery_possibility ='".$recovery_possibility."'";
                     $media_month = "";
                     $transfer_month = "";
-                } elseif($stage_id==7 && $recovery_possibility!=''){
-                    $media_stage = " AND stage = 5 AND recovery_possibility ='".$recovery_possibility."'";
-                    $transfer_stage = " AND m.stage = 5 AND m.recovery_possibility ='".$recovery_possibility."'";
+                } elseif($stage_id==8 && $recovery_possibility!=''){
+                    $media_stage = " AND stage = 6 AND recovery_possibility ='".$recovery_possibility."'";
+                    $transfer_stage = " AND m.stage = 6 AND m.recovery_possibility ='".$recovery_possibility."'";
                     $media_month = "";
                     $transfer_month = "";
                 }

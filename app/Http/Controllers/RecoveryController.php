@@ -142,4 +142,21 @@ class RecoveryController extends Controller
         $media->save();
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),$request->input('type'),$media->stage);
     }
+
+    public function updateDl(Request $request)
+    {
+        $id = $request->input('id');
+        $dir = MediaDirectory::find($id);
+        $dir->rework = $request->input('rework');
+        $dir->save();
+        $media = Media::find($dir->media_id);
+        if($dir->rework == 'No')
+        $media->stage = 11;
+        $media->no_recovery_reason = $request->input('no_recovery_reason');
+        $media->no_recovery_reason_other = $request->input('no_recovery_reason_other');
+        $media->save();
+        $remarks = $request->input('remarks');
+        $this->_insertMediaHistory($media,"edit",$remarks,'DL-REWORK',$media->stage);
+
+    }
 }

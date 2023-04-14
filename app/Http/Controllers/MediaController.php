@@ -18,6 +18,7 @@ use App\Models\Branch;
 use DB;
 use App\Models\CustomerDetail;
 use App\Models\FileUpload;
+use App\Models\MediaDirectory;
 class MediaController extends Controller
 {
 
@@ -58,12 +59,12 @@ class MediaController extends Controller
         }
         if($status != null && $status !='')
         {
-            if($status == 3 && $searchType !='' && $searchType != null)
-            $query->whereNotIn('media.stage', [1,2])->whereRaw('MONTH(media.created_on) = MONTH(CURRENT_DATE()) AND YEAR(media.created_on) = YEAR(CURRENT_DATE())');
-            elseif($status == 6)
-            $query->Where('media.stage', '=', 5)->Where('media.recovery_possibility','=','Yes'); 
+            if($status == 4 && $searchType !='' && $searchType != null)
+            $query->whereNotIn('media.stage', [1,2,3])->whereRaw('MONTH(media.created_on) = MONTH(CURRENT_DATE()) AND YEAR(media.created_on) = YEAR(CURRENT_DATE())');
             elseif($status == 7)
-            $query->Where('media.stage', '=', 5)->Where('media.recovery_possibility','=','No');
+            $query->Where('media.stage', '=', 6)->Where('media.recovery_possibility','=','Yes'); 
+            elseif($status == 8)
+            $query->Where('media.stage', '=', 6)->Where('media.recovery_possibility','=','No');
             elseif($status == 1 || $status == 10)
             $query->WhereIn('media.stage',[1,10]);
             else
@@ -170,6 +171,7 @@ class MediaController extends Controller
             $media[0]->media_clone_detail = json_decode($media[0]->media_clone_detail);
             $media[0]->media_sapre_detail = json_decode($media[0]->media_sapre_detail);
             $media[0]->fileUpload = FileUpload::where('media_id',$media[0]->id)->get();
+            $media[0]->Directory_Listing = MediaDirectory::where('media_id',$media[0]->id)->first();
             return response()->json($media[0]);
         }  
         else

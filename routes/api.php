@@ -130,5 +130,6 @@ Route::group(['middleware' => ['api']], function() {
      Route::get('media/comman-history/{id}', [MediaController::class, '_commanHistory']);
      Route::get('recovery/fatch-directory/{id}', [RecoveryController::class, 'getDirectory']);
      Route::post('recovery/update-directory', [RecoveryController::class, 'saveDirectory']);
+     Route::post('recovery/update-media-dl', [RecoveryController::class, 'updateDl']);
      
 });
