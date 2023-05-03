@@ -100,8 +100,8 @@ class RecoveryController extends Controller
         if(($request->input('clone_creation') =='No') || ($request->input('data_encrypted') =='Yes' && $request->input('decryption_data')=='No') 
             || ($request->input('recoverable_data') =='No' && $request->input('type')=='RECOVERABLE-DATA'))
             $media->stage = 11;
-        if($request->input('recoverable_data') =='Yes' && $request->input('clone_branch')!=null  &&  $request->input('type')=='RECOVERABLE-DATA')
-        $media->user_id = null;
+       // if($request->input('recoverable_data') =='Yes' && $request->input('clone_branch')!=null  &&  $request->input('type')=='RECOVERABLE-DATA')
+       // $media->user_id = null;
         $media->save();
         $remarks = $request->input('remarks');
         $this->_insertMediaHistory($media,"edit",$remarks, $request->input('type'),$media->stage);

@@ -110,6 +110,7 @@ Route::group(['middleware' => ['api']], function() {
     Route::post('media/addDummy', [MediaController::class,'addDummyMedia']);
     Route::post('media/updateDummy', [MediaController::class,'updateDummyMedia']);
     Route::get('media/UpdateStausDummyMedia/{id}', [MediaController::class,'UpdateStausDummyMedia']);
+    Route::get('media/UpdateStausDl/{id}', [MediaController::class,'UpdateStausDl']);
     ///////End 
     /// GatePass List
     Route::post('job/gatepasslist', [JobController::class, 'gatepasslist']);

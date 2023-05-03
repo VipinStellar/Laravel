@@ -579,4 +579,16 @@ class MediaController extends Controller
         return response()->json($media);
     }
 
+    public function UpdateStausDl($id)
+    {
+        $media = Media::find($id);
+        $media->stage = 13;
+        $media->save();
+        $dl = MediaDirectory::where('media_id',$id)->first();
+        $dl->dl_status = 'Yes';
+        $dl->copyin = 'Online Transfer';
+        $dl->save();
+        return response()->json($media);
+    }
+
 }
