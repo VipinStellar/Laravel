@@ -157,13 +157,14 @@ class MediaController extends Controller
     public function getMedia($id)
     {
         $select = 'media.*,branch.branch_name as branch_name,customer_detail.customer_name as customer_name,transfer_media.transfer_code,
-                  recovery.recoverable_data as rec_recoverable_data,recovery.clone_branch as rec_clone_branch';
+                  recovery.recoverable_data as rec_recoverable_data,recovery.clone_branch as rec_clone_branch,stage.stage_name as stageName';
         $query = DB::table('media')->select(DB::raw($select));
         $query->where('media.id', '=',$id);
         $query->leftJoin('branch', 'branch.id', '=', 'media.branch_id');
 	    $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
         $query->leftJoin("transfer_media","transfer_media.id", "=", 'media.transfer_id');
         $query->leftJoin('recovery','recovery.media_id', '=','media.id');
+        $query->leftJoin('stage','stage.id', '=','media.stage');
         $media =  $query->get();   
         if(count($media) > 0)
         {

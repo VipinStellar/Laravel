@@ -10,6 +10,7 @@ use App\Models\Media;
 use App\Models\Recovery;
 use App\Models\MediaDirectory;
 use App\Models\User;
+use App\Models\FileUpload;
 use DB;
 
 
@@ -25,6 +26,7 @@ class RecoveryController extends Controller
     {
         $recovery = Media::find($media_id);
         $recovery->recoveryObj = Recovery::where('media_id',$media_id)->first();
+        $recovery->fileUpload = FileUpload::where('media_id',$media_id)->get();
         if($recovery->recoveryObj != null)
         {
             $recovery->recoveryObj['clone_required_encrypted_data'] = json_decode($recovery->recoveryObj['clone_required_encrypted_data']);
@@ -61,6 +63,8 @@ class RecoveryController extends Controller
         $dir->email_notification = $request->input('email_notification');
         $dir->total_data_size_format = $request->input('total_data_size_format');
         $dir->total_mail_size_format = $request->input('total_mail_size_format');
+        $dir->recoverable_data = $request->input('recoverable_data');
+        $dir->data_recovered = json_encode($request->input('data_recovered'));
         $dir->save();
         $media = Media::find($dir->media_id);
         $media->stage = 12;
@@ -93,15 +97,16 @@ class RecoveryController extends Controller
         $rec->clone_required_encrypted_data = json_encode($request->input('clone_required_encrypted_data'));
         $rec->clone_required_recoverable = $request->input('clone_required_recoverable');
         $rec->clone_required_recoverable_data = json_encode($request->input('clone_required_recoverable_data'));
+        $rec->start_date = $request->input('start_date');
+        $rec->end_date = $request->input('end_date');
+        $rec->partial_reason = $request->input('partial_reason');
+        $rec->partial_reason_other = $request->input('partial_reason_other');
         $rec->save();
         $media = Media::find($rec->media_id);
         $media->no_recovery_reason = $request->input('no_recovery_reason');
         $media->no_recovery_reason_other = $request->input('no_recovery_reason_other');
-        if(($request->input('clone_creation') =='No') || ($request->input('data_encrypted') =='Yes' && $request->input('decryption_data')=='No') 
-            || ($request->input('recoverable_data') =='No' && $request->input('type')=='RECOVERABLE-DATA'))
+        if(($request->input('clone_creation') =='No') || ($request->input('recoverable_data') =='No' && $request->input('type')=='RECOVERABLE-DATA'))
             $media->stage = 11;
-       // if($request->input('recoverable_data') =='Yes' && $request->input('clone_branch')!=null  &&  $request->input('type')=='RECOVERABLE-DATA')
-       // $media->user_id = null;
         $media->save();
         $remarks = $request->input('remarks');
         $this->_insertMediaHistory($media,"edit",$remarks, $request->input('type'),$media->stage);
