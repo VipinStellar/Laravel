@@ -352,7 +352,7 @@ class MediaController extends Controller
         $media->transfer_id = $transfer->id;
         $media->team_id = 0;
         $media->extension_required = $request->input('extension_required');
-        $media->extension_day = $media->extension_day + $request->input('extension_day');
+        $media->extension_day = $media->extension_day;
         $media->team_assign = 0;
         $media->user_id = null;
         $media->save();
@@ -576,6 +576,8 @@ class MediaController extends Controller
     {
         $media = Media::find($id);
         $media->stage = 8;
+        if($media->required_days != null)
+        $media->due_date = $this->_getDueDate(date('Y-m-d'),$media->required_days);
         $media->save();
         return response()->json($media);
     }
@@ -589,6 +591,19 @@ class MediaController extends Controller
         $dl->dl_status = 'Yes';
         $dl->copyin = 'Online Transfer';
         $dl->save();
+        return response()->json($media);
+    }
+
+    public function extensionUpdateDummy($id)
+    {
+        $media = Media::find($id);
+        $media->extension_approve = 0;
+        if($media->due_date != null)
+        $media->due_date = $this->_getDueDate($media->due_date,$media->extension_day);
+        else
+        $media->due_date = $this->_getDueDate(date('Y-m-d'),$media->extension_day);
+        $media->save();
+        $this->_insertMediaHistory($media,"edit",'Extension Approved','EXTENSION-DAY',$media->stage,'Approved');
         return response()->json($media);
     }
 

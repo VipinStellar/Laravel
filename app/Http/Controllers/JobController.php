@@ -176,9 +176,6 @@ class JobController extends Controller
         $Obser->imaging_process_at_initial_stage = $request->input('imaging_process_at_initial_stage');
         $Obser->spare_required = $request->input('spare_required');
         $Obser->label1 = $request->input('label1');
-        $Obser->label2 = $request->input('label2');
-        $Obser->label3 = $request->input('label3');
-        $Obser->label4 = $request->input('label4');
         $Obser->architacture = $request->input('architacture');
         $Obser->internal_damage = $request->input('internal_damage');
         $Obser->controller_name = $request->input('controller_name');
@@ -262,7 +259,7 @@ class JobController extends Controller
       }
       if($term != null && $term !='')
       {
-        $query->whereRaw("(media.zoho_id = ".$term." or media.job_id = ".$term.")");
+        $query->whereRaw("(media.zoho_id = '".$term."' or media.job_id = '".$term."')");
       }
       $query->orderBy($request->input('orderBy'), $request->input('order'));
       $pageSize = $request->input('pageSize');

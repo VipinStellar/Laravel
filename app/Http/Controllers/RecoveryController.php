@@ -141,11 +141,17 @@ class RecoveryController extends Controller
     {
         $media = Media::find($request->input('media_id'));
         if($request->input('extension_day') !='Not Applicable')
-        $media->extension_day = $request->input('extension_day') + $media->extension_day;
+        {
+         $media->extension_day = $request->input('extension_day');
+         $media->extension_approve = 1;
+        }
         else
-        $media->extension_day  = $request->input('extension_day');
+        {
+         $media->extension_day  = $request->input('extension_day');
+        }
+        $remarks = "Extension requested for ".$request->input('extension_day')." days. <br>".$request->input('remarks');
         $media->save();
-        $this->_insertMediaHistory($media,"edit",$request->input('remarks'),$request->input('type'),$media->stage);
+        $this->_insertMediaHistory($media,"edit",$remarks,$request->input('type'),$media->stage,'Pending');
     }
 
     public function updateDl(Request $request)
@@ -155,8 +161,8 @@ class RecoveryController extends Controller
         $dir->rework = $request->input('rework');
         $dir->save();
         $media = Media::find($dir->media_id);
-        if($dir->rework == 'No')
-        $media->stage = 11;
+        if($dir->rework == 'Yes')
+        $media->stage = 14;
         $media->no_recovery_reason = $request->input('no_recovery_reason');
         $media->no_recovery_reason_other = $request->input('no_recovery_reason_other');
         $media->save();

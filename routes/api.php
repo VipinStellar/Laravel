@@ -132,5 +132,6 @@ Route::group(['middleware' => ['api']], function() {
      Route::get('recovery/fatch-directory/{id}', [RecoveryController::class, 'getDirectory']);
      Route::post('recovery/update-directory', [RecoveryController::class, 'saveDirectory']);
      Route::post('recovery/update-media-dl', [RecoveryController::class, 'updateDl']);
+     Route::get('media/extension-update-dummy/{id}', [MediaController::class,'extensionUpdateDummy']);
      
 });
