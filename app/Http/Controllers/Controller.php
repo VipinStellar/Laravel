@@ -84,6 +84,15 @@ protected function _getPaginatedResult($query,$request)
       return $branchId;
   }
 
+  protected function _userCheckBrnach($bId)
+  {
+      $currnetBrnach = $this->_getBranchId();
+      if(in_array($bId,$currnetBrnach))
+      return true;
+      else
+      return false;
+  }
+
   protected function _sendMail($msg,$subject,$to)
   {
     Mail::html($msg, function($message) use ($msg,$to, $subject){

@@ -60,17 +60,15 @@ class JobController extends Controller
         $branchIdReq = $request->input('branchId');
         $branchId = implode(',',$this->_getBranchId());
         $select = 'media.*,transfer_media.media_id as transfer_media_id,transfer_media.gatepass_status as getpasStatus,
-                   transfer_media.new_branch_id as new_branch_id,transfer_media.transfer_code as transfer_code,
+                   transfer_media.new_branch_id as new_branch_id,transfer_media.old_branch_id,transfer_media.transfer_code as transfer_code,
                    branch.branch_name as branch_name,customer_detail.customer_name as customer_name,stage.stage_name as stage_name';
         $query = DB::table('media')->select(DB::raw($select));
         $query->leftJoin("transfer_media","media.id", "=", DB::raw("transfer_media.media_id and media.transfer_id=transfer_media.id"));
         $query->leftJoin('branch', 'branch.id', '=', 'media.branch_id');
         $query->leftJoin('stage', 'stage.id', '=', 'media.stage');
-        //$query->leftjoin("gatepass",\DB::raw("FIND_IN_SET(media.id,gatepass.media_id)"),">",\DB::raw("'0'"));
-       // $query->leftJoin(DB::raw('(select * FROM job_status js where js.id IN (select max(js1.id) from job_status js1 where js1.media_id = js.media_id)) job_status'), function($join) { $join->on('job_status.media_id', '=', 'media.id');});
         $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
         if(auth()->user()->role_id !=1)
-        $query->whereRaw("(media.branch_id in ($branchId) or transfer_media.new_branch_id in ($branchId))");
+        $query->whereRaw("(media.branch_id in ($branchId) or transfer_media.new_branch_id in ($branchId) or transfer_media.old_branch_id in ($branchId))");
 
         if($branchIdReq != null && $branchIdReq !='')
           $query->whereRaw("(media.branch_id in ($branchIdReq) or transfer_media.new_branch_id in ($branchIdReq))");
@@ -89,6 +87,9 @@ class JobController extends Controller
               $result->getpassId = $Gatequery[0]->id;
               $result->ref_name = $Gatequery[0]->ref_name_num;;
             }
+            $result->genPassCheck = $this->_userCheckBrnach($result->old_branch_id);
+            $result->mediaInCheck = $this->_userCheckBrnach($result->new_branch_id);
+            $result->mediaTransCheck = $this->_userCheckBrnach(($result->transfer_id == null)?$result->branch_id:$result->new_branch_id);
             if($result->new_branch_id !=null)
             $result->new_branch_id =$this->_getBranchName($result->new_branch_id);
          
@@ -232,8 +233,7 @@ class JobController extends Controller
       $media->Obser = Observation::where('media_id',$mediaId)->first();
       return response()->json($media);
     }
-
-    
+       
     public function GatePassList(Request $request){
       $search_passType = $request->input('passType');
       $search_branchId = $request->input('branchId');
@@ -246,16 +246,16 @@ class JobController extends Controller
       $query->leftJoin("gatepass","gatepass_id.gatepass_id", "=", "gatepass.id");
       $query->leftJoin("stage", "media.stage", "=", "stage.id");
       $query->leftJoin("customer_detail","media.customer_id", "=","customer_detail.id");
-      $query->leftJoin("branch","transfer_media.new_branch_id", "=", "branch.id");
+      $query->leftJoin("branch","transfer_media.old_branch_id", "=", "branch.id");
       //$query->where("transfer_media.media_in_status", "=","0");
       if(auth()->user()->role_id !=1)
-      $query->whereRaw("transfer_media.new_branch_id in ($branchId)");
+      $query->whereRaw("transfer_media.old_branch_id in ($branchId)");
 
       if($search_passType !=null && $search_passType !=''){
         $query->where("gatepass.gatepass_type", "=", "".$search_passType."");
       }
       if($search_branchId !=null && $search_branchId !=''){
-        $query->whereRaw("(transfer_media.new_branch_id = ".$search_branchId.")");
+        $query->whereRaw("(transfer_media.old_branch_id = ".$search_branchId.")");
       }
       if($term != null && $term !='')
       {

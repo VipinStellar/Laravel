@@ -44,7 +44,7 @@ class MediaController extends Controller
         $query->leftJoin('stage', 'stage.id', '=', 'media.stage');
         $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
         if(auth()->user()->role_id !=1 && ($searchType =='' || $searchType == null))
-        $query->whereRaw("(media.branch_id in ($branchId) or transfer_media.new_branch_id in ($branchId))");
+        $query->whereRaw("(media.branch_id in ($branchId) or transfer_media.new_branch_id in ($branchId) or transfer_media.old_branch_id in ($branchId))");
       
         if($term !=null && $term !='' && $searchfieldName !=null && $searchfieldName !='' )
         {
@@ -156,7 +156,7 @@ class MediaController extends Controller
 
     public function getMedia($id)
     {
-        $select = 'media.*,branch.branch_name as branch_name,customer_detail.customer_name as customer_name,transfer_media.transfer_code,
+        $select = 'media.*,branch.branch_name as branch_name,customer_detail.customer_name as customer_name,transfer_media.transfer_code,transfer_media.new_branch_id,
                   recovery.recoverable_data as rec_recoverable_data,recovery.clone_branch as rec_clone_branch,stage.stage_name as stageName';
         $query = DB::table('media')->select(DB::raw($select));
         $query->where('media.id', '=',$id);
@@ -326,7 +326,7 @@ class MediaController extends Controller
 
     public function transferBranch()
     {
-        $branchs = Branch::whereNotIn('id',$this->_getBranchId())->get();
+        $branchs = Branch::all();
         return response()->json($branchs);
     }
 
@@ -357,7 +357,7 @@ class MediaController extends Controller
         $media->user_id = null;
         $media->save();
        // $sendMail = $this->_sendMailTransferMedia($transfer,$media);
-        $remarks = "Media Transferred From".$oldBranch->branch_name." to ".$newBranch->branch_name." by ".$this->_getUserName(auth()->user()->id).".";
+        $remarks = "Media Transferred From ".$oldBranch->branch_name." to ".$newBranch->branch_name." by ".$this->_getUserName(auth()->user()->id).".";
         $this->_insertMediaHistory($media,"edit",$remarks,'TRANSFER-MEDIA',$media->stage);
         return response()->json($media);
     }
