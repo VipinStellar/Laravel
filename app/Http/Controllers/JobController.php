@@ -60,7 +60,7 @@ class JobController extends Controller
         $branchIdReq = $request->input('branchId');
         $branchId = implode(',',$this->_getBranchId());
         $select = 'media.*,transfer_media.media_id as transfer_media_id,transfer_media.gatepass_status as getpasStatus,
-                   transfer_media.new_branch_id as new_branch_id,transfer_media.old_branch_id,transfer_media.transfer_code as transfer_code,
+                   transfer_media.new_branch_id as new_branch_id,transfer_media.old_branch_id,transfer_media.transfer_code as transfer_code,transfer_media.client_media_send,
                    branch.branch_name as branch_name,customer_detail.customer_name as customer_name,stage.stage_name as stage_name';
         $query = DB::table('media')->select(DB::raw($select));
         $query->leftJoin("transfer_media","media.id", "=", DB::raw("transfer_media.media_id and media.transfer_id=transfer_media.id"));

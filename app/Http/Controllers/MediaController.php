@@ -37,7 +37,7 @@ class MediaController extends Controller
         $searchfieldName = $request->input('searchfieldName');
 
         $branchId = implode(',',$this->_getBranchId());
-        $select = 'media.*,transfer_media.media_id as transfer_media_id,transfer_media.new_branch_id as new_branch_id, branch.branch_name as branch_name,customer_detail.customer_name as customer_name,stage.stage_name as stage_name';
+        $select = 'media.*,transfer_media.media_id as transfer_media_id,transfer_media.new_branch_id as new_branch_id, branch.branch_name as branch_name,customer_detail.customer_name as customer_name,stage.stage_name as stage_name,transfer_media.client_media_send';
         $query = DB::table('media')->select(DB::raw($select));
         $query->leftJoin("transfer_media","media.id", "=", DB::raw("transfer_media.media_id and media.transfer_id=transfer_media.id"));
         $query->leftJoin('branch', 'branch.id', '=', 'media.branch_id');
@@ -156,7 +156,7 @@ class MediaController extends Controller
 
     public function getMedia($id)
     {
-        $select = 'media.*,branch.branch_name as branch_name,customer_detail.customer_name as customer_name,transfer_media.transfer_code,transfer_media.new_branch_id,
+        $select = 'media.*,branch.branch_name as branch_name,customer_detail.customer_name as customer_name,transfer_media.transfer_code,transfer_media.new_branch_id,transfer_media.client_media_send,
                   recovery.recoverable_data as rec_recoverable_data,recovery.clone_branch as rec_clone_branch,stage.stage_name as stageName';
         $query = DB::table('media')->select(DB::raw($select));
         $query->where('media.id', '=',$id);
@@ -338,27 +338,47 @@ class MediaController extends Controller
         if(count($mediaOldid) > 0)
         $oldbranchId = $mediaOldid[0]->new_branch_id;
         $oldBranch = Branch::find($oldbranchId);
-        $newBranch = Branch::find($request->input('branch_id'));
-        $transfer = new MediaTransfer();
-        if(count($mediaOldid) > 0)
-        $transfer->old_branch_id = $oldbranchId;
-        else
-        $transfer->old_branch_id = $media->branch_id;
-        $transfer->new_branch_id = $request->input('branch_id');
-        $transfer->reason = $request->input('reason');
-        $transfer->media_id = $media->id;
-        $transfer->created_on  = Carbon::now()->toDateTimeString();
-        $transfer->save();
-        $media->transfer_id = $transfer->id;
-        $media->team_id = 0;
-        $media->extension_required = $request->input('extension_required');
-        $media->extension_day = $media->extension_day;
-        $media->team_assign = 0;
-        $media->user_id = null;
-        $media->save();
-       // $sendMail = $this->_sendMailTransferMedia($transfer,$media);
-        $remarks = "Media Transferred From ".$oldBranch->branch_name." to ".$newBranch->branch_name." by ".$this->_getUserName(auth()->user()->id).".";
-        $this->_insertMediaHistory($media,"edit",$remarks,'TRANSFER-MEDIA',$media->stage);
+        if($request->input('branch_id') !='Client')
+        {
+            $newBranch = Branch::find($request->input('branch_id'));
+            $transfer = new MediaTransfer();
+            if(count($mediaOldid) > 0)
+            $transfer->old_branch_id = $oldbranchId;
+            else
+            $transfer->old_branch_id = $media->branch_id;
+            $transfer->new_branch_id = $request->input('branch_id');
+            $transfer->reason = $request->input('reason');
+            $transfer->media_id = $media->id;
+            $transfer->created_on  = Carbon::now()->toDateTimeString();
+            $transfer->save();
+            $media->transfer_id = $transfer->id;
+            $media->team_id = 0;
+            $media->extension_required = $request->input('extension_required');
+            $media->extension_day = $media->extension_day;
+            $media->team_assign = 0;
+            $media->user_id = null;
+            $media->save();
+            $remarks = "Media Transferred From ".$oldBranch->branch_name." to ".$newBranch->branch_name." by ".$this->_getUserName(auth()->user()->id).".";
+        }
+        else if($request->input('branch_id') =='Client')
+        {
+            $transfer = new MediaTransfer();
+            $transfer->old_branch_id = $oldbranchId;
+            $transfer->new_branch_id = $oldbranchId;
+            $transfer->reason = $request->input('reason');
+            $transfer->media_id = $media->id;
+            $transfer->created_on  = Carbon::now()->toDateTimeString();
+            $transfer->media_in_status = '1';
+            $transfer->client_media_send = '1';
+            $currentSerices =  MediaTransfer::where('new_branch_id', $transfer->new_branch_id)->max('transfer_series');
+            $transfer->transfer_series = ($currentSerices == '')?1:$currentSerices+1;
+            $transfer->save();
+            $oldBranch = Branch::find($oldbranchId);
+            MediaTransfer::where(['media_id'=>$transfer->media_id])->update(['client_media_send'=>'1']);
+            $remarks = "Media Transferred From ".$oldBranch->branch_name." to Client by ".$this->_getUserName(auth()->user()->id).".";
+        }
+        // $sendMail = $this->_sendMailTransferMedia($transfer,$media);
+           $this->_insertMediaHistory($media,"edit",$remarks,'TRANSFER-MEDIA',$media->stage);
         return response()->json($media);
     }
 
