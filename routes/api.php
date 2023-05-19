@@ -87,6 +87,7 @@ Route::group(['middleware' => ['api']], function() {
 
     //////new Controller For media Strat
     Route::post('media/medialist', [MediaController::class, 'medialist']);
+    Route::post('media/mediaoutlist', [MediaController::class, 'mediaOutList']);
     Route::get('media/getmedia/{id}', [MediaController::class, 'getMedia']);
     Route::get('media/all-history/{id}', [MediaController::class, 'getAllHistory']);
     Route::get('media/transfer-history/{id}', [MediaController::class, 'getTransferHistory']);

@@ -27,6 +27,29 @@ class MediaController extends Controller
         $this->middleware('auth');
     }
 
+    public function mediaOutList(Request $request)
+    {
+        $branchId = implode(',',$this->_getBranchId());
+        $select = 'media.*, branch.branch_name as branch_name,customer_detail.customer_name as customer_name,stage.stage_name as stage_name';
+        $query = DB::table('media')->select(DB::raw($select));
+        $query->leftJoin('branch', 'branch.id', '=', 'media.branch_id');
+        $query->leftJoin('stage', 'stage.id', '=', 'media.stage');
+        $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
+        $query->WhereIn('media.stage',[9,10,11,15]);
+        $query->orderBy($request->input('orderBy'), $request->input('order'));
+        $pageSize = $request->input('pageSize');
+        $data = $query->paginate($pageSize,['*'],'page_no');
+        $results = $data->items();
+        $count = $data->total();
+        $data = [
+            "draw" => $request->input('draw'),
+            "recordsTotal" => $count,
+            "data" => $results
+            ];
+            return json_encode($data);
+              
+    }
+
     public function medialist(Request $request)
     {
         $term = $request->input('term');
@@ -375,6 +398,8 @@ class MediaController extends Controller
             $transfer->save();
             $oldBranch = Branch::find($oldbranchId);
             MediaTransfer::where(['media_id'=>$transfer->media_id])->update(['client_media_send'=>'1']);
+            $media->stage = 15;
+            $media->save();
             $remarks = "Media Transferred From ".$oldBranch->branch_name." to Client by ".$this->_getUserName(auth()->user()->id).".";
         }
         // $sendMail = $this->_sendMailTransferMedia($transfer,$media);
