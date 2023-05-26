@@ -59,19 +59,20 @@ class JobController extends Controller
         $statusId = $request->input('statusId');
         $branchIdReq = $request->input('branchId');
         $branchId = implode(',',$this->_getBranchId());
-        $select = 'media.*,transfer_media.media_id as transfer_media_id,transfer_media.gatepass_status as getpasStatus,
+        $select = 'transfer_media.media_id as transfer_media_id,transfer_media.assets_type,transfer_media.id as transferId,transfer_media.gatepass_status as getpasStatus,gatepass_id.gatepass_id as getpassId,
                    transfer_media.new_branch_id as new_branch_id,transfer_media.old_branch_id,transfer_media.transfer_code as transfer_code,transfer_media.client_media_send,
-                   branch.branch_name as branch_name,customer_detail.customer_name as customer_name,stage.stage_name as stage_name';
-        $query = DB::table('media')->select(DB::raw($select));
-        $query->leftJoin("transfer_media","media.id", "=", DB::raw("transfer_media.media_id and media.transfer_id=transfer_media.id"));
+                   branch.branch_name as branch_name,customer_detail.customer_name as customer_name,stage.stage_name as stage_name,media.*';
+        $query = DB::table('transfer_media')->select(DB::raw($select));
+        $query->leftJoin("media",'transfer_media.media_id', "=","media.id");
         $query->leftJoin('branch', 'branch.id', '=', 'media.branch_id');
         $query->leftJoin('stage', 'stage.id', '=', 'media.stage');
+        $query->leftJoin("gatepass_id","transfer_media.id", "=", "gatepass_id.transfer_id");
         $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
         if(auth()->user()->role_id !=1)
-        $query->whereRaw("(media.branch_id in ($branchId) or transfer_media.new_branch_id in ($branchId) or transfer_media.old_branch_id in ($branchId))");
+        $query->whereRaw("(transfer_media.new_branch_id in ($branchId) or transfer_media.old_branch_id in ($branchId))");
 
         if($branchIdReq != null && $branchIdReq !='')
-          $query->whereRaw("(media.branch_id in ($branchIdReq) or transfer_media.new_branch_id in ($branchIdReq))");
+          $query->whereRaw("(transfer_media.old_branch_id in ($branchIdReq) or transfer_media.new_branch_id in ($branchIdReq))");
 
         $query->orderBy($request->input('orderBy'), $request->input('order'));
         $pageSize = $request->input('pageSize');
@@ -79,17 +80,13 @@ class JobController extends Controller
         $results = $data->items();
         $i = 0;
         foreach ($results as $result) {
-            $result->getpassId = null;
-            $result->ref_name = null;
-            $Gatequery = DB::table('gatepass')->whereRaw('FIND_IN_SET(?, media_id)', [$result->id])->orderBy('id','DESC')->limit(1)->get();
-            if(count($Gatequery) > 0)
-            {
-              $result->getpassId = $Gatequery[0]->id;
-              $result->ref_name = $Gatequery[0]->ref_name_num;;
-            }
+          $result->ref_name = null;
+          $Gatequery = DB::table('gatepass')->whereRaw('FIND_IN_SET(?, media_id)', [$result->transfer_media_id])->orderBy('id','DESC')->limit(1)->get();
+          if(count($Gatequery) > 0)
+            $result->ref_name = $Gatequery[0]->ref_name_num;;
             $result->genPassCheck = $this->_userCheckBrnach($result->old_branch_id);
             $result->mediaInCheck = $this->_userCheckBrnach($result->new_branch_id);
-            $result->mediaTransCheck = $this->_userCheckBrnach(($result->transfer_id == null)?$result->branch_id:$result->new_branch_id);
+            $result->mediaTransCheck = $this->_userCheckBrnach(($result->transferId == null)?$result->branch_id:$result->new_branch_id);
             if($result->new_branch_id !=null)
             $result->new_branch_id =$this->_getBranchName($result->new_branch_id);
          
@@ -247,7 +244,7 @@ class JobController extends Controller
       $query->leftJoin("stage", "media.stage", "=", "stage.id");
       $query->leftJoin("customer_detail","media.customer_id", "=","customer_detail.id");
       $query->leftJoin("branch","transfer_media.old_branch_id", "=", "branch.id");
-      //$query->where("transfer_media.media_in_status", "=","0");
+      $query->where("transfer_media.gatepass_status", "=","1");
       if(auth()->user()->role_id !=1)
       $query->whereRaw("transfer_media.old_branch_id in ($branchId)");
 

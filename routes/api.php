@@ -91,7 +91,7 @@ Route::group(['middleware' => ['api']], function() {
     Route::get('media/getmedia/{id}', [MediaController::class, 'getMedia']);
     Route::get('media/all-history/{id}', [MediaController::class, 'getAllHistory']);
     Route::get('media/transfer-history/{id}', [MediaController::class, 'getTransferHistory']);
-    Route::get('media/dept-user/{id}', [MediaController::class, 'getdeptUser']);
+    Route::get('media/dept-user/{id}/{branchid}', [MediaController::class, 'getdeptUser']);
     Route::post('media/update-allot-job', [MediaController::class, 'updateAllotJob']);
 
     Route::get('media/mediaHistory/{id}/{type}/{module}', [MediaController::class, 'getMediaHistory']);
@@ -134,5 +134,6 @@ Route::group(['middleware' => ['api']], function() {
      Route::post('recovery/update-directory', [RecoveryController::class, 'saveDirectory']);
      Route::post('recovery/update-media-dl', [RecoveryController::class, 'updateDl']);
      Route::get('media/extension-update-dummy/{id}', [MediaController::class,'extensionUpdateDummy']);
+     Route::get('media/original-media/{id}', [MediaController::class, 'originalMedia']);
      
 });

@@ -139,9 +139,15 @@ class MediaController extends Controller
         return response()->json($history);
     }
 
-    public function getdeptUser($deptId)
+    public function getdeptUser($teamid,$branchid)
     {
-        $teamUser = User::where('team_id',$deptId)->get();
+            $branchs = BranchRelated::where('branch_id',$branchid)->get();
+            $userId = array();           
+            foreach($branchs as $branch)
+            {
+                $userId[] = $branch->user_id;
+            }
+        $teamUser = User::whereIn('id',array_unique($userId))->where('team_id',$teamid)->get();
         return response()->json($teamUser);
     }
 
@@ -353,11 +359,28 @@ class MediaController extends Controller
         return response()->json($branchs);
     }
 
+    public function originalMedia($mediaId)
+    {
+        $transferCheck = true;
+        $trasferMedia = MediaTransfer::where('media_id', $mediaId)->where('assets_type','Original Media')->limit(1)->orderBy('id', 'DESC')->get();
+        if(count($trasferMedia) > 0)
+        {
+                if(in_array($trasferMedia[0]['new_branch_id'],$this->_getBranchId()))
+                $transferCheck = true;
+                else
+                $transferCheck = false;
+        }
+           return response()->json($transferCheck);
+    }
+
     public function sendMediatransfer(Request $request)
     {
         $media = Media::find($request->input('media_id'));
         $oldbranchId = $media->branch_id;
+        if($request->input('assets_type') == 'Original Media')
         $mediaOldid = MediaTransfer::where('media_id', $media->id)->limit(1)->orderBy('id', 'DESC')->get();
+        else
+        $mediaOldid = array();
         if(count($mediaOldid) > 0)
         $oldbranchId = $mediaOldid[0]->new_branch_id;
         $oldBranch = Branch::find($oldbranchId);
@@ -373,15 +396,19 @@ class MediaController extends Controller
             $transfer->reason = $request->input('reason');
             $transfer->media_id = $media->id;
             $transfer->created_on  = Carbon::now()->toDateTimeString();
+            $transfer->assets_type = $request->input('assets_type');
             $transfer->save();
-            $media->transfer_id = $transfer->id;
-            $media->team_id = 0;
             $media->extension_required = $request->input('extension_required');
-            $media->extension_day = $media->extension_day;
+            $media->extension_day = $request->input('extension_day');
             $media->team_assign = 0;
-            $media->user_id = null;
+            if($request->input('assets_type') == 'Original Media')
+            {
+                    $media->team_id = 0;
+                    $media->user_id = null;
+                    $media->transfer_id = $transfer->id;
+            }
             $media->save();
-            $remarks = "Media Transferred From ".$oldBranch->branch_name." to ".$newBranch->branch_name." by ".$this->_getUserName(auth()->user()->id).".";
+            $remarks = $request->input('assets_type')." Transferred From ".$oldBranch->branch_name." to ".$newBranch->branch_name." by ".$this->_getUserName(auth()->user()->id).".";
         }
         else if($request->input('branch_id') =='Client')
         {
@@ -395,12 +422,13 @@ class MediaController extends Controller
             $transfer->client_media_send = '1';
             $currentSerices =  MediaTransfer::where('new_branch_id', $transfer->new_branch_id)->max('transfer_series');
             $transfer->transfer_series = ($currentSerices == '')?1:$currentSerices+1;
+            $transfer->assets_type = $request->input('assets_type');
             $transfer->save();
             $oldBranch = Branch::find($oldbranchId);
             MediaTransfer::where(['media_id'=>$transfer->media_id])->update(['client_media_send'=>'1']);
             $media->stage = 15;
             $media->save();
-            $remarks = "Media Transferred From ".$oldBranch->branch_name." to Client by ".$this->_getUserName(auth()->user()->id).".";
+            $remarks = $request->input('assets_type')." Transferred From ".$oldBranch->branch_name." to Client by ".$this->_getUserName(auth()->user()->id).".";
         }
         // $sendMail = $this->_sendMailTransferMedia($transfer,$media);
            $this->_insertMediaHistory($media,"edit",$remarks,'TRANSFER-MEDIA',$media->stage);
@@ -478,11 +506,11 @@ class MediaController extends Controller
 
     public function updateGatePassRef(Request $request)
     {
-            $mediaId =  $request->input('transfer_id');
+            $transfer_id =  $request->input('transfer_id');
             $gate = Gatepass::find($request->input('id'));
             $gate->ref_name_num = $request->input('ref_name_num');
             $gate->save();
-             $sss = $this->generateMediaCode($mediaId);
+            $sss = $this->generateMediaCode($transfer_id);
     }
     
 
@@ -508,7 +536,7 @@ class MediaController extends Controller
         }
          $transfer->media_in_status = "1";
          $transfer->save();
-         $remarks = "Media In";
+         $remarks = $transfer->assets_type." Received by ".$this->_getUserName(auth()->user()->id).".";
          $this->_insertMediaHistory($media,"edit",$remarks,'TRANSFER-MEDIA',$media->stage);
          return response()->json($transfer);
 
