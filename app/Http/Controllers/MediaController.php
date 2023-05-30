@@ -425,7 +425,10 @@ class MediaController extends Controller
             $transfer->assets_type = $request->input('assets_type');
             $transfer->save();
             $oldBranch = Branch::find($oldbranchId);
-            MediaTransfer::where(['media_id'=>$transfer->media_id])->update(['client_media_send'=>'1']);
+            //MediaTransfer::where(['media_id'=>$transfer->media_id])->update(['client_media_send'=>'1']);
+            if($request->input('assets_type') == 'Original Media')
+            $media->stage = 16;
+            else if($request->input('assets_type') == 'Data')
             $media->stage = 15;
             $media->save();
             $remarks = $request->input('assets_type')." Transferred From ".$oldBranch->branch_name." to Client by ".$this->_getUserName(auth()->user()->id).".";
@@ -655,6 +658,16 @@ class MediaController extends Controller
         return response()->json($media);
     }
 
+    public function mediaDataout(Request $request)
+    {
+        $dl = MediaDirectory::find($request->input('id'));
+        $dl->copyin_details = $request->input('copyin_details');
+        $dl->frontdisk_out_req ='1';
+        $dl->save();
+        $media = Media::find($request->input('media_id'));
+        $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'DATA-OUT',$media->stage);
+    }
+
     public function UpdateStausDl($id)
     {
         $media = Media::find($id);
@@ -662,7 +675,8 @@ class MediaController extends Controller
         $media->save();
         $dl = MediaDirectory::where('media_id',$id)->first();
         $dl->dl_status = 'Yes';
-        $dl->copyin = 'Online Transfer';
+        $dl->copyin = 'Stellar Media';
+        $dl->copyin_details = '[{"media_sn":"effdsdsf","media_model":"zxcz","capacity":"500 GB","media_make":"Test","inventry_num":null}]';
         $dl->save();
         return response()->json($media);
     }

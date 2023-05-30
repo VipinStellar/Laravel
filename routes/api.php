@@ -135,5 +135,6 @@ Route::group(['middleware' => ['api']], function() {
      Route::post('recovery/update-media-dl', [RecoveryController::class, 'updateDl']);
      Route::get('media/extension-update-dummy/{id}', [MediaController::class,'extensionUpdateDummy']);
      Route::get('media/original-media/{id}', [MediaController::class, 'originalMedia']);
+     Route::post('media/data-out', [MediaController::class, 'mediaDataout']);
      
 });
