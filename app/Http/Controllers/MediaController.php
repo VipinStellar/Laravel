@@ -254,10 +254,10 @@ class MediaController extends Controller
         $media = Media::find($id);
         $branchId = $media->branch_id;
         $transfer_id = $media->transfer_id;
-        if($branchId != null && $transfer_id !=null)
+        if($transfer_id !=null)
         {
             $transfer = MediaTransfer::find($transfer_id);
-            $branchs = BranchRelated::whereIn('branch_id',[$branchId,$transfer->new_branch_id])->get();
+            $branchs = BranchRelated::whereIn('branch_id',[$transfer->new_branch_id])->get();
         }
         else
         {
@@ -377,7 +377,7 @@ class MediaController extends Controller
     {
         $media = Media::find($request->input('media_id'));
         $oldbranchId = $media->branch_id;
-        if($request->input('assets_type') == 'Original Media')
+        if($request->input('assets_type') == 'Original Media' && $media->transfer_id !=null)
         $mediaOldid = MediaTransfer::where('media_id', $media->id)->limit(1)->orderBy('id', 'DESC')->get();
         else
         $mediaOldid = array();
@@ -398,14 +398,27 @@ class MediaController extends Controller
             $transfer->created_on  = Carbon::now()->toDateTimeString();
             $transfer->assets_type = $request->input('assets_type');
             $transfer->save();
-            $media->extension_required = $request->input('extension_required');
-            $media->extension_day = $request->input('extension_day');
-            $media->team_assign = 0;
             if($request->input('assets_type') == 'Original Media')
             {
                     $media->team_id = 0;
                     $media->user_id = null;
                     $media->transfer_id = $transfer->id;
+                    $media->extension_required = $request->input('extension_required');
+                    $media->extension_day = $request->input('extension_day');
+                    if($request->input('extension_required') == 'Yes' && $request->input('extension_day') !=null)
+                    {
+                            if($media->stage == '1' || $media->stage == '2')
+                                $media->pre_due_date = $this->_getDueDate($media->pre_due_date,$request->input('extension_day'));
+                            else if($media->stage == '4' || $media->stage == '5')
+                                $media->assessment_due_date = $this->_getDueDate($media->assessment_due_date,$request->input('extension_day'));
+                            else if($media->stage > 7)
+                            {
+                                $media->extension_approve = 1;
+                                $remarks = "Extension requested for ".$request->input('extension_day')." days. <br>".$request->input('reason');
+                                $this->_insertMediaHistory($media,"edit",$remarks,'EXTENSION-DAY',$media->stage,'Pending');
+                            }
+
+                    }
             }
             $media->save();
             $remarks = $request->input('assets_type')." Transferred From ".$oldBranch->branch_name." to ".$newBranch->branch_name." by ".$this->_getUserName(auth()->user()->id).".";
@@ -485,8 +498,12 @@ class MediaController extends Controller
         $media->no_recovery_reason = $request->input('no_recovery_reason');
         $media->no_recovery_reason_other = $request->input('no_recovery_reason_other');
         $media->encryption_name = $request->input('encryption_name');
-        $media->extension_required = $request->input('extension_required');
-        $media->extension_day =  $request->input('extension_day');
+        if($media->stage == 5 && $request->input('extension_required') == 'Yes' && $request->input('extension_day') != null)
+        {
+            $media->extension_required = $request->input('extension_required');
+            $media->extension_day =  $request->input('extension_day');
+            $media->assessment_due_date = $this->_getDueDate($media->assessment_due_date,$request->input('extension_day'));
+        }
         $media->notes = $request->input('notes');
         $media->total_drive = json_encode($request->input('total_drive'));
         $media->media_clone_detail = json_encode($request->input('media_clone_detail'));
@@ -620,6 +637,7 @@ class MediaController extends Controller
         $media->created_on = Carbon::now()->toDateTimeString();
         $media->customer_id = $cus->id;
         $media->stage = 1;
+        $media->pre_due_date = $this->_getDueDate(date('Y-m-d'),1);
         $media->save();
         $remarks = (!empty($media->zoho_user) ? "Case added by Zoho user ".$media->zoho_user : "Case added by Zoho user");
         $this->_insertMediaHistory($media,"edit",$remarks,'PRE-ANALYSIS',$media->stage);
@@ -632,6 +650,7 @@ class MediaController extends Controller
         $media = Media::find($request->input('id'));
         $media->job_id = strtoupper(substr($request->input('branch_name'), 0, 3)).'/'.rand(10,100); 
         $media->zoho_job_id = rand();
+        $media->assessment_due_date = $this->_getDueDate(date('Y-m-d'),2);
         $media->stage = 4;
         $media->save();
         $remarks = (!empty($this->_getUserName(auth()->user()->id)) ? "Data updated by Zoho user ".$this->_getUserName(auth()->user()->id) : "Data updated by Zoho user");
@@ -665,6 +684,17 @@ class MediaController extends Controller
         $dl->frontdisk_out_req ='1';
         $dl->save();
         $media = Media::find($request->input('media_id'));
+        if($media->transfer_id == null)
+        {
+            $media->user_id = $this->_getFrontDeskId($media->branch_id);
+            $media->save();
+        }
+        else if($media->transfer_id != null)
+        {
+            $transMedia = MediaTransfer::where('media_id', $media->id)->limit(1)->orderBy('id', 'DESC')->first();
+            $media->user_id = $this->_getFrontDeskId($transMedia->new_branch_id);
+            $media->save();
+        }
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'DATA-OUT',$media->stage);
     }
 
@@ -676,7 +706,7 @@ class MediaController extends Controller
         $dl = MediaDirectory::where('media_id',$id)->first();
         $dl->dl_status = 'Yes';
         $dl->copyin = 'Stellar Media';
-        $dl->copyin_details = '[{"media_sn":"effdsdsf","media_model":"zxcz","capacity":"500 GB","media_make":"Test","inventry_num":null}]';
+        $dl->copyin_details = '[{"media_sn":"123","media_model":"SDD12","capacity":"500 GB","media_make":"Test","inventry_num":null}]';
         $dl->save();
         return response()->json($media);
     }

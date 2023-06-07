@@ -102,6 +102,25 @@ protected function _getPaginatedResult($query,$request)
      
   }
 
+  protected function _getFrontDeskId($branchId)
+  {
+      $curUser = null;
+      $userId = array();
+      $branchs = BranchRelated::where('branch_id',$branchId)->get();
+      foreach($branchs as $branch)
+      {
+          $userId[] = $branch->user_id;
+      }
+      if(count($userId) > 0)
+      {
+        $users = User::whereIn('id',$userId)->where('team_id',10)->first();
+        if($users != null)
+          $curUser = $users->id;
+      }
+
+      return $curUser;
+  }
+
   protected function _getUserIdEmail($branchId)
   {
      $userId = array();

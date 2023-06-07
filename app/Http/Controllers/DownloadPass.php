@@ -30,20 +30,15 @@ class DownloadPass extends Controller
       $media_detail = $query1->get();
       /// Data Set For Print
       for($i=0; $i < count($other_assets); $i++){
-          for($j=0; $j < count($media_detail); $j++){
-            $matrial_job_id = ($media_detail[$j]->job_id !='' && $media_detail[$j]->job_id != null) ? $media_detail[$j]->job_id : $media_detail[$j]->zoho_id;
-            if($other_assets[$i]->only_media){
-              if($other_assets[$i]->assets_job_id == $matrial_job_id){
-                $other_assets[$i]->material_name = $media_detail[$j]->media_type;
+             foreach($media_detail as $media){
+              $matrial_job_id = ($media->job_id !='' && $media->job_id != null) ? $media->job_id : $media->zoho_id;
+            if($other_assets[$i]->only_media && ($other_assets[$i]->assets_job_id == $media->job_id || $other_assets[$i]->assets_job_id == $media->zoho_id)){
+                $other_assets[$i]->material_name = $media->media_type;
                 $material_description =($matrial_job_id != '' && $matrial_job_id != null)? '<strong>Job ID - </strong>'.$matrial_job_id.', ':'';
-                $material_description.=($media_detail[$j]->media_serial !='' && $media_detail[$j]->media_serial != null)?'<strong>Media Serial - </strong>'.$media_detail[$j]->media_serial.', ':'';
-                $material_description.=($media_detail[$j]->media_make !='' && $media_detail[$j]->media_make != null)?'<strong>Media Make - </strong>'.$media_detail[$j]->media_make.', ':'';
-                $material_description.=($media_detail[$j]->media_model !='' && $media_detail[$j]->media_model != null)?'<strong>Media Model - </strong>'.$media_detail[$j]->media_model:'';
+                $material_description.=($media->media_serial !='' && $media->media_serial != null)?'<strong>Media Serial - </strong>'.$media->media_serial.', ':'';
+                $material_description.=($media->media_make !='' && $media->media_make != null)?'<strong>Media Make - </strong>'.$media->media_make.', ':'';
+                $material_description.=($media->media_model !='' && $media->media_model != null)?'<strong>Media Model - </strong>'.$media->media_model:'';
                 $other_assets[$i]->material_description = $material_description;
-              }
-            }else{
-              $other_assets[$i]->material_name ='';
-              $other_assets[$i]->material_description ='';
             }
           }
       }
