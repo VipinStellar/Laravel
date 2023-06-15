@@ -13,7 +13,10 @@ use App\Models\Branch;
 use App\Models\User;
 use App\Models\Stage;
 use App\Models\BranchRelated;
+use Carbon\Carbon; 
 use DB;
+use App\Models\MediaTeam;
+
 class Controller extends BaseController
 {
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
@@ -45,11 +48,29 @@ protected function _getPaginatedResult($query,$request)
       return $user->name;
   }
 
+  protected function _getUerEmail($userId)
+  {
+      $user = User::find($userId);
+      return $user->email;
+  }
+
+  protected function _getTeamName($id)
+  {
+      $team = MediaTeam::find($id);
+      return $team->team_name;
+  }
+
   protected function _getStageName($id)
   {
       $stage = Stage::find($id);
       return $stage->stage_name;
   }
+
+  protected function  _insertMediaHistory($media,$type,$remarks,$module,$status,$extStatus=null)
+    {
+        DB::insert('insert into media_history (media_id,added_by,action_type,remarks,module_type,added_on,status,ext_status) values (?,?,?,?,?,?,?,?)', array($media->id, auth()->user()->id,
+        $type,$remarks,$module,Carbon::now()->toDateTimeString(),$status,$extStatus));
+    }
 
   protected function _getBranchId()
   {
@@ -63,6 +84,15 @@ protected function _getPaginatedResult($query,$request)
       return $branchId;
   }
 
+  protected function _userCheckBrnach($bId)
+  {
+      $currnetBrnach = $this->_getBranchId();
+      if(in_array($bId,$currnetBrnach))
+      return true;
+      else
+      return false;
+  }
+
   protected function _sendMail($msg,$subject,$to)
   {
     Mail::html($msg, function($message) use ($msg,$to, $subject){
@@ -70,6 +100,25 @@ protected function _getPaginatedResult($query,$request)
       $message->to(is_array($to)?$to:\explode(",",$to))->subject($subject);
     });
      
+  }
+
+  protected function _getFrontDeskId($branchId)
+  {
+      $curUser = null;
+      $userId = array();
+      $branchs = BranchRelated::where('branch_id',$branchId)->get();
+      foreach($branchs as $branch)
+      {
+          $userId[] = $branch->user_id;
+      }
+      if(count($userId) > 0)
+      {
+        $users = User::whereIn('id',$userId)->where('team_id',10)->first();
+        if($users != null)
+          $curUser = $users->id;
+      }
+
+      return $curUser;
   }
 
   protected function _getUserIdEmail($branchId)
@@ -121,15 +170,34 @@ protected function _getPaginatedResult($query,$request)
 
   protected function _sendMailMediaStatusChanged($oldMedia,$newMedia)
   {
-        $userEmail =$this->_getUserIdEmail($newMedia->branch_id);
+          $userEmail =$this->_getUserIdEmail($newMedia->user_id);
           $content = "Media Status has been Changed ".$this->_getStageName($oldMedia->stage)." to ".$this->_getStageName($newMedia->stage);
           if(count($userEmail) > 0)
-            $sendmail = $this->_sendMail($content,"Media Assignee Change",$userEmail);
+            $sendmail = $this->_sendMail($content,"Media Status Change",$userEmail);
   }
 
   protected function get_query()
   {
     return 'SELECT COUNT(id) AS count_id FROM media WHERE 1';
+  }
+
+  protected function _getDueDate($startDate,$day)
+  {
+    $endDate = date('Y-m-d', strtotime($startDate. ' +'.$day.' days'));
+    $finalDate = $this->dueDateNonWorking($startDate,$endDate);
+    return $finalDate;
+  }
+
+  protected function dueDateNonWorking($startDate,$endDate)
+  {
+    $startTimestamp = strtotime($startDate);
+    $endTimestamp = strtotime($endDate);
+    for($i=$startTimestamp; $i<=$endTimestamp; $i = $i+(60*60*24) ){
+      if(date("N",$i) ==7) 
+         $endDate =  date('Y-m-d', strtotime($endDate. ' + 1 days'));
+      }
+      return $endDate;
+
   }
 
 }

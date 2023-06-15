@@ -16,7 +16,7 @@ class MediaApiController extends Controller
     
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['mediaAnalysis','mediaAssessment']]);
+        $this->middleware('auth:api', ['except' => ['mediaAnalysis','mediaAssessment','changeStatus']]);
     }
 
     function arrayIndex($rqst,$key)
@@ -27,6 +27,57 @@ class MediaApiController extends Controller
             return null;
     }
 
+    public function changeStatus(Request $request)
+    {
+        $formError = 0;
+        $response = array();
+        $response['status'] = 'ERROR';
+        $response['msg'] = '';
+        $checkApi = $this->validApiKey($response,$formError);
+        if($checkApi[0]['msg'] !='' && $checkApi[1] != 0)
+       {
+            return $checkApi[0];
+       }
+       else if($checkApi[0]['msg'] =='' && $checkApi[1] == 0)
+       {
+            $contentType = isset($_SERVER["CONTENT_TYPE"]) ? trim($_SERVER["CONTENT_TYPE"]) : '';
+            if(strcasecmp($contentType, 'application/x-www-form-urlencoded') == 0 && $formError == 0){
+                $rqst = $_POST;
+            }elseif(strcasecmp($contentType, 'application/json') == 0 && $formError == 0){
+                $content = trim(file_get_contents("php://input"));
+                $rqst = json_decode($content, true);
+            }
+            if(empty($rqst) && $formError == 0){
+                $formError = 1;
+                $response['msg'] = 'Required data is empty';
+            }
+            $required_fields = array('zoho_id','job_id','zoho_user','stage');
+            $fields = '';
+            foreach($required_fields as $field) {
+                if (isset($rqst[$field]) && empty($rqst[$field])) {
+                    $formError = 1;
+                    $fields .= $field.", ";
+                    $response['msg'] = 'Required field '.$fields. ' is empty';
+                }
+            }
+            if($formError == 0 && !empty($rqst['job_id'])){
+                $media = Media::where('zoho_id', $rqst['zoho_id'])->where('job_id',$rqst['job_id'])->first();
+                if($media != '' || $media != null )
+                 {
+                    $media->stage = $rqst['stage'];
+                    $media->save();
+                    $history = $this->_insertHistory("Media Update by Zoho user",$media->id,'assessment',$rqst['zoho_user'],$media->stage,'ChangeStatus');
+                    $response['status'] = 'SUCCESS';
+                    $response['msg'] = 'Media Status Changed';
+                 } 
+                 else{
+                    $response['msg'] = 'Media Not Found';
+                 }
+           }
+          return $response;
+       }
+    }
+    
     public function mediaAssessment(Request $request)
     {
         $formError = 0;
@@ -114,10 +165,10 @@ class MediaApiController extends Controller
        }
     }
 
-    function _insertHistory($remarks,$id,$module,$user,$status)
+    function _insertHistory($remarks,$id,$module,$user,$status,$action = 'edit')
     {
         $response =array();
-        $id = DB::table('media_history')->insertGetId(['media_id' => $id,'added_by' => $user,'action_type'=>'edit','remarks'=>$remarks,'module_type'=>$module,'added_on'=>Carbon::now()->toDateTimeString(),'status'=>$status]);
+        $id = DB::table('media_history')->insertGetId(['media_id' => $id,'added_by' => $user,'action_type'=>$action,'remarks'=>$remarks,'module_type'=>$module,'added_on'=>Carbon::now()->toDateTimeString(),'status'=>$status]);
         if($id){
             $response['msg'] = 'Data Submitted Successfully in MIMS';
             $response['status'] = 'SUCCESS';

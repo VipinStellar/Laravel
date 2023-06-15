@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\DownloadPass;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,3 +17,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
+
+// Route::get('/downloadpass/{id}', function () {
+//     return view('downloadpass');
+// });
+
+
+ Route::resource('/downloadpass/{id}', DownloadPass::class);

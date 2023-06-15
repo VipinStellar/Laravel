@@ -12,6 +12,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use DB;
+use Illuminate\Support\Facades\Hash;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class UserController extends Controller
 {
@@ -209,26 +211,42 @@ class UserController extends Controller
    
     }
 
-    public function getPreAnalysis(){
-        return $this->dashbordCount(1);
+   
+
+    public function getcountWait()
+    {
+        $branchId = $this->_getBranchId();
+        $branches = Branch::whereIn('id',$branchId)->get();
+        $result = array();
+        $media_query = "SELECT COUNT(id) AS count_id FROM media WHERE recovery_possibility = 'Yes'";
+        foreach($branches as $branch){
+            $result[$branch->branch_name]=array("branch_id"=>$branch->id,"stage_id"=>7);
+            $data = DB::select($media_query." AND branch_id = ".(int)$branch->id."  AND stage = 7");
+            $result[$branch->branch_name]['totalMedia']=$data[0]->count_id;            
+        }
+        return $result;
     }
-    public function getPreAnalysDone(){
-        return $this->dashbordCount(2);
+
+    public function dashbordConfirm($stage_id)
+    {
+        $branchId = $this->_getBranchId();
+        $branches = Branch::whereIn('id',$branchId)->get();
+        $result = array();
+        $media_query = "SELECT COUNT(id) AS count_id FROM media WHERE 1";
+        foreach($branches as $branch){
+            $result[$branch->branch_name]=array("branch_id"=>$branch->id,"stage_id"=>$stage_id);
+            $data = DB::select($media_query." AND branch_id = ".(int)$branch->id."  AND stage = ".$stage_id."");
+            $result[$branch->branch_name]['totalMedia']=$data[0]->count_id;            
+        }
+        return $result;
     }
-    public function getMediaIn(){
-        return $this->dashbordCount(3);
-    }
-    public function getAssessmentInProcess(){
-        return $this->dashbordCount(4);
-    }
-    public function getAssessmentDone(){
-        return $this->dashbordCount(5);
-    }
-    public function getCasePossible(){
-        return $this->dashbordCount(6,'Yes');
-    }
-    public function getCaseNotPossible(){
-        return $this->dashbordCount(7,'No');
+
+    public function DashBaordCount()
+    {
+        return ['Pre'=>$this->dashbordCount(1),'PreDone'=>$this->dashbordCount(3),'MediaIn'=>$this->dashbordCount(4),
+                'AssInProcess'=>$this->dashbordCount(5),'AssInDone'=>$this->dashbordCount(6),'casePossible'=>$this->dashbordCount(7,'Yes'),
+                'caseNotPossible'=>$this->dashbordCount(8,'No'),'countConfirm'=>$this->dashbordConfirm(8),'countNotConfirm'=>$this->dashbordConfirm(9),
+                'countWait'=>$this->getcountWait()];
     }
 
     public function dashbordCount($stage_id='',$recovery_possibility=''){
@@ -242,30 +260,31 @@ class UserController extends Controller
 
                 $result[$branch->branch_name]=array("branch_id"=>$branch->id,"stage_id"=>$stage_id,"user_id"=>auth()->user()->id);
              
-                if($stage_id==2 || $stage_id==4 || $stage_id==5){
+                if($stage_id==1){
+                    $media_stage = " AND stage IN (1,2)";
+                    $transfer_stage = " AND m.stage IN (1,2)";
+                    $media_month = "";
+                    $transfer_month = "";
+                }
+                elseif($stage_id==3 || $stage_id==5 || $stage_id==6){
                     $media_stage = " AND stage = ".(int)$stage_id."";
                     $transfer_stage = " AND m.stage = ".(int)$stage_id."";
                     $media_month = "";
                     $transfer_month = "";
                 } 
-                elseif($stage_id==1){
-                    $media_stage = " AND stage IN (1,10)";
-                    $transfer_stage = " AND m.stage IN (1,10)";
-                    $media_month = "";
-                    $transfer_month = "";
-                }elseif($stage_id==3){
-                    $media_stage = " AND stage NOT IN (1,2)";
-                    $transfer_stage = " AND m.stage NOT IN (1,2)";
+                elseif($stage_id==4){
+                    $media_stage = " AND stage NOT IN (1,2,3)";
+                    $transfer_stage = " AND m.stage NOT IN (1,2,3)";
                     $media_month = " AND created_on >= DATE_FORMAT(NOW(), '%Y-%m-01')";
                     $transfer_month = " AND m.created_on >= DATE_FORMAT(NOW(), '%Y-%m-01')";
-                } elseif($stage_id==6 && $recovery_possibility!=''){
-                    $media_stage = " AND stage = 5 AND recovery_possibility ='".$recovery_possibility."' ";
-                    $transfer_stage = " AND m.stage = 5 AND m.recovery_possibility ='".$recovery_possibility."'";
+                } elseif($stage_id==7 && $recovery_possibility!=''){
+                    $media_stage = " AND stage = 6 AND recovery_possibility ='".$recovery_possibility."' ";
+                    $transfer_stage = " AND m.stage = 6 AND m.recovery_possibility ='".$recovery_possibility."'";
                     $media_month = "";
                     $transfer_month = "";
-                } elseif($stage_id==7 && $recovery_possibility!=''){
-                    $media_stage = " AND stage = 5 AND recovery_possibility ='".$recovery_possibility."'";
-                    $transfer_stage = " AND m.stage = 5 AND m.recovery_possibility ='".$recovery_possibility."'";
+                } elseif($stage_id==8 && $recovery_possibility!=''){
+                    $media_stage = " AND stage = 6 AND recovery_possibility ='".$recovery_possibility."'";
+                    $transfer_stage = " AND m.stage = 6 AND m.recovery_possibility ='".$recovery_possibility."'";
                     $media_month = "";
                     $transfer_month = "";
                 }
@@ -298,6 +317,24 @@ class UserController extends Controller
         return  $result;
     }
 
-
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'old_password' => 'required',
+            'new_password' => 'required|confirmed',
+        ]);
+        if(!Hash::check($request->old_password, auth()->user()->password)){
+            return response()->json(['password'=>"Old Password Not Match"], 400);
+         }
+        else
+        {
+            User::whereId(auth()->user()->id)->update([
+                'password' =>bcrypt($request->new_password)
+            ]);
+            $token = JWTAuth::getToken();
+            JWTAuth::setToken($token)->invalidate();
+            return response()->json(['password'=>"Password has been Changed"]);
+        }
+    }
 
 }
