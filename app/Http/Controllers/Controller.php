@@ -48,6 +48,12 @@ protected function _getPaginatedResult($query,$request)
       return $user->name;
   }
 
+  protected function _getUserTeamId($userId)
+  {
+      $user = User::find($userId);
+      return $user->team_id;
+  }
+
   protected function _getUerEmail($userId)
   {
       $user = User::find($userId);

@@ -81,6 +81,7 @@ class AuthController extends Controller
                 'name' =>auth()->user()->name,
                 'emp_code' =>auth()->user()->emp_code,
                 'role_id' =>auth()->user()->role_id,
+                'team_id' =>auth()->user()->team_id,
                 'supervisor_id' =>auth()->user()->supervisor_id,
                 'token'          => $token,
                 'token_type'     => 'bearer',

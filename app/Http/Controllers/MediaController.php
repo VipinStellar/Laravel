@@ -19,6 +19,7 @@ use DB;
 use App\Models\CustomerDetail;
 use App\Models\FileUpload;
 use App\Models\MediaDirectory;
+use App\Models\MediaOut;
 class MediaController extends Controller
 {
 
@@ -202,6 +203,11 @@ class MediaController extends Controller
             $media[0]->media_sapre_detail = json_decode($media[0]->media_sapre_detail);
             $media[0]->fileUpload = FileUpload::where('media_id',$media[0]->id)->get();
             $media[0]->Directory_Listing = MediaDirectory::where('media_id',$media[0]->id)->first();
+            $media[0]->mediaout = null;
+            $mediaout = DB::table('media_out')->select(DB::raw('media_out.*,users.name'))->where('media_out.media_id', '=',$id)->leftJoin('users', 'users.id', '=', 'media_out.user_id')->get();
+            if(count($mediaout) > 0)
+            $media[0]->mediaout = $mediaout;
+           
             return response()->json($media[0]);
         }  
         else
@@ -378,7 +384,9 @@ class MediaController extends Controller
         $media = Media::find($request->input('media_id'));
         $oldbranchId = $media->branch_id;
         if($request->input('assets_type') == 'Original Media' && $media->transfer_id !=null)
-        $mediaOldid = MediaTransfer::where('media_id', $media->id)->limit(1)->orderBy('id', 'DESC')->get();
+        $mediaOldid = MediaTransfer::where('id', $media->transfer_id)->get();
+        else if($request->input('assets_type') != 'Original Media' && $media->transfer_id !=null)
+           $mediaOldid = MediaTransfer::where('id', $media->transfer_id)->get();
         else
         $mediaOldid = array();
         if(count($mediaOldid) > 0)
@@ -431,6 +439,7 @@ class MediaController extends Controller
             $transfer->reason = $request->input('reason');
             $transfer->media_id = $media->id;
             $transfer->created_on  = Carbon::now()->toDateTimeString();
+            $transfer->media_in_date  = Carbon::now()->toDateTimeString();
             $transfer->media_in_status = '1';
             $transfer->client_media_send = '1';
             $currentSerices =  MediaTransfer::where('new_branch_id', $transfer->new_branch_id)->max('transfer_series');
@@ -555,6 +564,7 @@ class MediaController extends Controller
              $transfer->transfer_series  = $currentSerices;
         }
          $transfer->media_in_status = "1";
+         $transfer->media_in_date  = Carbon::now()->toDateTimeString();
          $transfer->save();
          $remarks = $transfer->assets_type." Received by ".$this->_getUserName(auth()->user()->id).".";
          $this->_insertMediaHistory($media,"edit",$remarks,'TRANSFER-MEDIA',$media->stage);
@@ -686,14 +696,20 @@ class MediaController extends Controller
         $media = Media::find($request->input('media_id'));
         if($media->transfer_id == null)
         {
+            $media->old_user_id = $media->user_id;
             $media->user_id = $this->_getFrontDeskId($media->branch_id);
             $media->save();
+            $remarks = "<b>Department Name : </b>Front Desk<br>"."<b>User Name : </b>".$this->_getUserName($media->user_id)."<br>"."<b>Reason : </b> Data Out";
+            $this->_insertMediaHistory($media,"edit",$remarks,'ASSIGN-CHANGE',$media->stage);
         }
         else if($media->transfer_id != null)
         {
             $transMedia = MediaTransfer::where('media_id', $media->id)->limit(1)->orderBy('id', 'DESC')->first();
+            $media->old_user_id = $media->user_id;
             $media->user_id = $this->_getFrontDeskId($transMedia->new_branch_id);
             $media->save();
+            $remarks = "<b>Department Name : </b>Front Desk<br>"."<b>User Name : </b>".$this->_getUserName($media->user_id)."<br>"."<b>Reason : </b> Data Out";
+            $this->_insertMediaHistory($media,"edit",$remarks,'ASSIGN-CHANGE',$media->stage);
         }
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'DATA-OUT',$media->stage);
     }

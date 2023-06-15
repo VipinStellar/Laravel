@@ -11,6 +11,7 @@ use App\Models\Recovery;
 use App\Models\MediaDirectory;
 use App\Models\User;
 use App\Models\FileUpload;
+use App\Models\MediaOut;
 use DB;
 
 
@@ -169,5 +170,36 @@ class RecoveryController extends Controller
         $remarks = $request->input('remarks');
         $this->_insertMediaHistory($media,"edit",$remarks,'DL-REWORK',$media->stage);
 
+    }
+
+    public function requsetmediaout(Request $request)
+    {
+            $media = Media::find($request->input('media_id'));
+            if($media->old_user_id != null)
+            {
+                $remarks = "<b>Department Name : </b>".$this->_getTeamName($this->_getUserTeamId($media->old_user_id))."<br>"."<b>User Name : </b>".$this->_getUserName($media->old_user_id)."<br>"."<b>Reason : </b> Media Out";
+                $this->_insertMediaHistory($media,"edit",$remarks,'ASSIGN-CHANGE',$media->stage);
+                $media->user_id = $media->old_user_id;
+                $media->old_user_id = null;
+                $media->save();
+            }
+            $mediaout  = new MediaOut();
+            $mediaout->media_id = $request->input('media_id');
+            $mediaout->request_type = $request->input('request_type');
+            $mediaout->remarks = $request->input('remarks');
+            $mediaout->request_date = Carbon::now()->toDateTimeString();
+            $mediaout->user_id = auth()->user()->id;
+            $mediaout->save();
+            $this->_insertMediaHistory($media,"edit",$mediaout->remarks,'MEDIA-OUT',$media->stage);
+    }
+
+    public function responcemediaout(Request $request)
+    {
+        $mediaout = MediaOut::find($request->input('id'));
+        $mediaout->approve_date = Carbon::now()->toDateTimeString();
+        $mediaout->status_type = '1';
+        $mediaout->save();
+        $media = Media::find($mediaout->media_id);
+        $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'MEDIA-OUT',$media->stage);
     }
 }
