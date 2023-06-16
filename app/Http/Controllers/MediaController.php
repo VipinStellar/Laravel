@@ -140,11 +140,18 @@ class MediaController extends Controller
         return response()->json($history);
     }
 
-    public function getdeptUser($teamid,$branchid)
+    public function getdeptUser($teamid,$mediaid)
     {
-            $branchs = BranchRelated::where('branch_id',$branchid)->get();
+            $media = Media::find($mediaid);
+            if($media->transfer_id !=null)
+            {
+              $transfer = MediaTransfer::find($media->transfer_id);
+              $branches = BranchRelated::whereIn('branch_id',[$media->branch_id,$transfer->new_branch_id])->get();
+            }
+            else
+            $branches = BranchRelated::where('branch_id',$media->branch_id)->get();
             $userId = array();           
-            foreach($branchs as $branch)
+            foreach($branches as $branch)
             {
                 $userId[] = $branch->user_id;
             }
