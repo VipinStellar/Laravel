@@ -440,6 +440,7 @@ class MediaController extends Controller
         }
         else if($request->input('branch_id') =='Client')
         {
+            $oldbranchId = $media->branch_id;
             $transfer = new MediaTransfer();
             $transfer->old_branch_id = $oldbranchId;
             $transfer->new_branch_id = $oldbranchId;

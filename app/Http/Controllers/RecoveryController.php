@@ -93,6 +93,7 @@ class RecoveryController extends Controller
         $rec->decryption_data = $request->input('decryption_data');
         $rec->decryption_data_details = $request->input('decryption_data_details');
         $rec->recoverable_data = $request->input('recoverable_data');
+        $rec->shared_with_branch = $request->input('shared_with_branch');
         $rec->clone_branch = $request->input('clone_branch');
         $rec->clone_required_encrypted = $request->input('clone_required_encrypted');
         $rec->clone_required_encrypted_data = json_encode($request->input('clone_required_encrypted_data'));
