@@ -20,6 +20,7 @@ use App\Models\CustomerDetail;
 use App\Models\FileUpload;
 use App\Models\MediaDirectory;
 use App\Models\MediaOut;
+use App\Models\UserAssign;
 class MediaController extends Controller
 {
 
@@ -116,8 +117,12 @@ class MediaController extends Controller
         $results = $data->items();
         $i = 0;
         foreach ($results as $result) {
+            $result->currentlocation = null;
             if($result->new_branch_id !=null)
             $result->new_branch_id =$this->_getBranchName($result->new_branch_id);
+            if($result->user_id !=null)
+             $result->currentlocation = $this->_getUserBranchId($result->user_id);
+
             $i++;
         }
         $count = $data->total();
@@ -164,6 +169,31 @@ class MediaController extends Controller
         $media = Media::find($request->input('media_id'));
         $media->user_id = $request->input('user_id');
         $media->team_id = $request->input('team_id');
+        if($media->transfer_id == null && $media->team_id !=10)
+        {
+            $userAssign = UserAssign::where('media_id',$media->id)->where('branch_id',$media->branch_id)->first();
+            if($userAssign == null)
+            {
+                $user = new UserAssign();
+                $user->media_id = $media->id;
+                $user->branch_id = $media->branch_id;
+                $user->user_id = $request->input('user_id');
+                $user->save();
+            }
+        }
+       else if($media->transfer_id != null && $media->team_id !=10)
+        {
+            $transfer = MediaTransfer::find($media->transfer_id);
+            $userAssign = UserAssign::where('media_id',$media->id)->where('branch_id',$transfer->new_branch_id)->first();
+            if($userAssign == null)
+            {
+                $user = new UserAssign();
+                $user->media_id = $media->id;
+                $user->branch_id = $transfer->new_branch_id;
+                $user->user_id = $request->input('user_id');
+                $user->save();
+            }
+        }
         $media->save();
         $remarks = "<b>Department Name : </b>".$this->_getTeamName($media->team_id)."<br>"."<b>User Name : </b>".$this->_getUserName($media->user_id)."<br>"."<b>Reason : </b>".$request->input('remarks');
         $this->_insertMediaHistory($media,"edit",$remarks,'ASSIGN-CHANGE',$media->stage);
@@ -702,23 +732,23 @@ class MediaController extends Controller
         $dl->frontdisk_out_req ='1';
         $dl->save();
         $media = Media::find($request->input('media_id'));
-        if($media->transfer_id == null)
-        {
-            $media->old_user_id = $media->user_id;
-            $media->user_id = $this->_getFrontDeskId($media->branch_id);
-            $media->save();
-            $remarks = "<b>Department Name : </b>Front Desk<br>"."<b>User Name : </b>".$this->_getUserName($media->user_id)."<br>"."<b>Reason : </b> Data Out";
-            $this->_insertMediaHistory($media,"edit",$remarks,'ASSIGN-CHANGE',$media->stage);
-        }
-        else if($media->transfer_id != null)
-        {
-            $transMedia = MediaTransfer::where('media_id', $media->id)->limit(1)->orderBy('id', 'DESC')->first();
-            $media->old_user_id = $media->user_id;
-            $media->user_id = $this->_getFrontDeskId($transMedia->new_branch_id);
-            $media->save();
-            $remarks = "<b>Department Name : </b>Front Desk<br>"."<b>User Name : </b>".$this->_getUserName($media->user_id)."<br>"."<b>Reason : </b> Data Out";
-            $this->_insertMediaHistory($media,"edit",$remarks,'ASSIGN-CHANGE',$media->stage);
-        }
+        // if($media->transfer_id == null)
+        // {
+        //     $media->old_user_id = $media->user_id;
+        //     $media->user_id = $this->_getFrontDeskId($media->branch_id);
+        //     $media->save();
+        //     $remarks = "<b>Department Name : </b>Front Desk<br>"."<b>User Name : </b>".$this->_getUserName($media->user_id)."<br>"."<b>Reason : </b> Data Out";
+        //     $this->_insertMediaHistory($media,"edit",$remarks,'ASSIGN-CHANGE',$media->stage);
+        // }
+        // else if($media->transfer_id != null)
+        // {
+        //     $transMedia = MediaTransfer::where('media_id', $media->id)->limit(1)->orderBy('id', 'DESC')->first();
+        //     $media->old_user_id = $media->user_id;
+        //     $media->user_id = $this->_getFrontDeskId($transMedia->new_branch_id);
+        //     $media->save();
+        //     $remarks = "<b>Department Name : </b>Front Desk<br>"."<b>User Name : </b>".$this->_getUserName($media->user_id)."<br>"."<b>Reason : </b> Data Out";
+        //     $this->_insertMediaHistory($media,"edit",$remarks,'ASSIGN-CHANGE',$media->stage);
+        // }
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'DATA-OUT',$media->stage);
     }
 

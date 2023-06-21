@@ -108,6 +108,12 @@ protected function _getPaginatedResult($query,$request)
      
   }
 
+  protected function _getUserBranchId($userId)
+  {
+    $branch = BranchRelated::where('user_id',$userId)->get();
+    return $this->_getBranchName($branch[0]->branch_id);
+  }
+
   protected function _getFrontDeskId($branchId)
   {
       $curUser = null;
