@@ -241,9 +241,17 @@ class MediaController extends Controller
             $media[0]->fileUpload = FileUpload::where('media_id',$media[0]->id)->get();
             $media[0]->Directory_Listing = MediaDirectory::where('media_id',$media[0]->id)->first();
             $media[0]->mediaout = null;
-            $mediaout = DB::table('media_out')->select(DB::raw('media_out.*,users.name'))->where('media_out.media_id', '=',$id)->leftJoin('users', 'users.id', '=', 'media_out.user_id')->get();
+            $mediaout = DB::table('media_out')->select(DB::raw('media_out.*'))->where('media_out.media_id', '=',$id)->get();
             if(count($mediaout) > 0)
-            $media[0]->mediaout = $mediaout;
+            {
+                foreach($mediaout as $medias)
+                {
+                    $medias->resBy = $this->_getUserName($medias->user_id_from);
+                    $medias->resTo = $this->_getUserName($medias->user_id_to);
+                }
+                $media[0]->mediaout = $mediaout;
+            }
+
            
             return response()->json($media[0]);
         }  
@@ -488,7 +496,7 @@ class MediaController extends Controller
             //MediaTransfer::where(['media_id'=>$transfer->media_id])->update(['client_media_send'=>'1']);
             if($request->input('assets_type') == 'Original Media')
             $media->stage = 16;
-            else if($request->input('assets_type') == 'Data')
+            else if($request->input('assets_type') == 'Data' || $request->input('assets_type') == 'Clone')
             $media->stage = 15;
             $media->save();
             $remarks = $request->input('assets_type')." Transferred From ".$oldBranch->branch_name." to Client by ".$this->_getUserName(auth()->user()->id).".";

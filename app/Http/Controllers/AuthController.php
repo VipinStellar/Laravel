@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use DB;
 use App\Models\Role;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use App\Models\BranchRelated;
 class AuthController extends Controller
 {
 
@@ -84,6 +85,7 @@ class AuthController extends Controller
                 'team_id' =>auth()->user()->team_id,
                 'supervisor_id' =>auth()->user()->supervisor_id,
                 'token'          => $token,
+                'branch_id'      => implode(" ",$this->_getBranchId()),
                 'token_type'     => 'bearer',
                 'assignRole' => $this->getRole(),
                 'token_validity' => ($this->guard()->factory()->getTTL()),

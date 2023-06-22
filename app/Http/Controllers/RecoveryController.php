@@ -12,6 +12,7 @@ use App\Models\MediaDirectory;
 use App\Models\User;
 use App\Models\FileUpload;
 use App\Models\MediaOut;
+use App\Models\MediaTransfer;
 use DB;
 
 
@@ -175,22 +176,31 @@ class RecoveryController extends Controller
 
     public function requsetmediaout(Request $request)
     {
+            $type = "Finaly";
             $media = Media::find($request->input('media_id'));
-            if($media->old_user_id != null)
+            $userid = null;
+            if($media->transfer_id == null || $media->media_out_type=="Partial")
             {
-                $remarks = "<b>Department Name : </b>".$this->_getTeamName($this->_getUserTeamId($media->old_user_id))."<br>"."<b>User Name : </b>".$this->_getUserName($media->old_user_id)."<br>"."<b>Reason : </b> Media Out";
-                $this->_insertMediaHistory($media,"edit",$remarks,'ASSIGN-CHANGE',$media->stage);
-                $media->user_id = $media->old_user_id;
-                $media->old_user_id = null;
-                $media->save();
+
+                $userid = DB::table('user_assign')->where('media_id',$media->id)->where('branch_id',$media->branch_id)->orderBy('id', 'asc')->first();
+            }
+            else if($media->transfer_id != null)
+            {   
+                $type = "Partial";
+                $trans = MediaTransfer::find($media->transfer_id);
+                $userid = DB::table('user_assign')->where('media_id',$media->id)->where('branch_id',$trans->new_branch_id)->orderBy('id', 'desc')->first();
             }
             $mediaout  = new MediaOut();
             $mediaout->media_id = $request->input('media_id');
             $mediaout->request_type = $request->input('request_type');
             $mediaout->remarks = $request->input('remarks');
             $mediaout->request_date = Carbon::now()->toDateTimeString();
-            $mediaout->user_id = auth()->user()->id;
+            $mediaout->user_id_from = auth()->user()->id;
+            $mediaout->user_id_to = $userid->user_id;
             $mediaout->save();
+            $media->media_out_type = $type;
+            $media->media_out_status = "0";
+            $media->save();
             $this->_insertMediaHistory($media,"edit",$mediaout->remarks,'MEDIA-OUT',$media->stage);
     }
 
@@ -201,6 +211,8 @@ class RecoveryController extends Controller
         $mediaout->status_type = '1';
         $mediaout->save();
         $media = Media::find($mediaout->media_id);
+         $media->media_out_status = null;
+         $media->save();
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'MEDIA-OUT',$media->stage);
     }
 }

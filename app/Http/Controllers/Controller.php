@@ -44,8 +44,14 @@ protected function _getPaginatedResult($query,$request)
 
   protected function _getUserName($userId)
   {
+    if($userId != null)
+    {
       $user = User::find($userId);
       return $user->name;
+    }
+    else
+    return null;
+
   }
 
   protected function _getUserTeamId($userId)
