@@ -137,7 +137,7 @@ class JobController extends Controller
 
     public function getMediaObservation($media_id)
     {
-      $select = 'media.id as mediaId,media.recovery_possibility as recovery_possibility,media.no_recovery_reason as no_recovery_reason,media.no_recovery_reason_other as no_recovery_reason_other,
+      $select = 'media.id as mediaId,media.case_type as caseType,media.recovery_possibility as recovery_possibility,media.no_recovery_reason as no_recovery_reason,media.no_recovery_reason_other as no_recovery_reason_other,
                 media.media_type as media_type,media.notes as notes,media.required_days as required_days,media.recovery_percentage as recovery_percentage,media.recoverable_data as recoverable_data,observation.*';
       $query = DB::table('media')->select(DB::raw($select));
       $query->where('media.id', '=',$media_id);

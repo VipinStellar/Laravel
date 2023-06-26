@@ -31,6 +31,7 @@ class RecoveryController extends Controller
         $recovery->fileUpload = FileUpload::where('media_id',$media_id)->get();
         if($recovery->recoveryObj != null)
         {
+            $recovery->recoveryObj['clone_required'] = json_decode($recovery->recoveryObj['clone_required']);
             $recovery->recoveryObj['clone_required_encrypted_data'] = json_decode($recovery->recoveryObj['clone_required_encrypted_data']);
             $recovery->recoveryObj['clone_required_recoverable_data'] = json_decode($recovery->recoveryObj['clone_required_recoverable_data']);
         }
@@ -100,6 +101,7 @@ class RecoveryController extends Controller
         $rec->clone_required_encrypted_data = json_encode($request->input('clone_required_encrypted_data'));
         $rec->clone_required_recoverable = $request->input('clone_required_recoverable');
         $rec->clone_required_recoverable_data = json_encode($request->input('clone_required_recoverable_data'));
+        $rec->clone_required = json_encode($request->input('clone_required'));
         $rec->start_date = $request->input('start_date');
         $rec->end_date = $request->input('end_date');
         $rec->partial_reason = $request->input('partial_reason');
