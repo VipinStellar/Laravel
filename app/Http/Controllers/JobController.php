@@ -190,7 +190,7 @@ class JobController extends Controller
         $media->required_days = $request->input('required_days');
         $media->notes = $request->input('notes');
         if($request->input('recovery_possibility') == 'No')
-            $media->stage = 11;
+            $media->stage = 14;
         $media->save();
         $remarks = $request->input('remarks');
         $this->_insertMediaHistory($media,"edit",$remarks,'OBSERVATION',$media->stage);

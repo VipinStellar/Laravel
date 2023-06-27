@@ -495,9 +495,20 @@ class MediaController extends Controller
             $oldBranch = Branch::find($oldbranchId);
             //MediaTransfer::where(['media_id'=>$transfer->media_id])->update(['client_media_send'=>'1']);
             if($request->input('assets_type') == 'Original Media')
-            $media->stage = 16;
+            {
+                if($media->stage == 7)
+                  $media->stage = 17;
+                else if($media->stage == 10)
+                $media->stage = 18;
+                else if($media->stage == 14)
+                $media->stage = 19;
+                else if($media->stage == 15)
+                $media->stage = 20;
+                else if($media->stage == 16)
+                $media->stage = 21;
+            }
             else if($request->input('assets_type') == 'Data' || $request->input('assets_type') == 'Clone')
-            $media->stage = 15;
+            $media->stage = 16;
             $media->save();
             $remarks = $request->input('assets_type')." Transferred From ".$oldBranch->branch_name." to Client by ".$this->_getUserName(auth()->user()->id).".";
         }
@@ -567,12 +578,12 @@ class MediaController extends Controller
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'INSPECTION',$media->stage);
         if($media->recovery_possibility == 'Yes' && $media->stage == 6)
         {
-            $media->stage = 7;
+            $media->stage = 8;
             $media->save();
         }
         if($media->recovery_possibility == 'No' && $media->stage == 6)
         {
-            $media->stage = 9;
+            $media->stage = 7;
             $media->save();
         }
         //$this->_sendMailMediaStatusChanged($oldMedia,$media);
@@ -726,7 +737,7 @@ class MediaController extends Controller
     public function UpdateStausDummyMedia($id)
     {
         $media = Media::find($id);
-        $media->stage = 8;
+        $media->stage = 9;
         if($media->required_days != null)
         $media->due_date = $this->_getDueDate(date('Y-m-d'),$media->required_days);
         $media->save();
@@ -740,30 +751,13 @@ class MediaController extends Controller
         $dl->frontdisk_out_req ='1';
         $dl->save();
         $media = Media::find($request->input('media_id'));
-        // if($media->transfer_id == null)
-        // {
-        //     $media->old_user_id = $media->user_id;
-        //     $media->user_id = $this->_getFrontDeskId($media->branch_id);
-        //     $media->save();
-        //     $remarks = "<b>Department Name : </b>Front Desk<br>"."<b>User Name : </b>".$this->_getUserName($media->user_id)."<br>"."<b>Reason : </b> Data Out";
-        //     $this->_insertMediaHistory($media,"edit",$remarks,'ASSIGN-CHANGE',$media->stage);
-        // }
-        // else if($media->transfer_id != null)
-        // {
-        //     $transMedia = MediaTransfer::where('media_id', $media->id)->limit(1)->orderBy('id', 'DESC')->first();
-        //     $media->old_user_id = $media->user_id;
-        //     $media->user_id = $this->_getFrontDeskId($transMedia->new_branch_id);
-        //     $media->save();
-        //     $remarks = "<b>Department Name : </b>Front Desk<br>"."<b>User Name : </b>".$this->_getUserName($media->user_id)."<br>"."<b>Reason : </b> Data Out";
-        //     $this->_insertMediaHistory($media,"edit",$remarks,'ASSIGN-CHANGE',$media->stage);
-        // }
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'DATA-OUT',$media->stage);
     }
 
     public function UpdateStausDl($id)
     {
         $media = Media::find($id);
-        $media->stage = 13;
+        $media->stage = 12;
         $media->save();
         $dl = MediaDirectory::where('media_id',$id)->first();
         $dl->dl_status = 'Yes';

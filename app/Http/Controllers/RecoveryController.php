@@ -70,7 +70,7 @@ class RecoveryController extends Controller
         $dir->data_recovered = json_encode($request->input('data_recovered'));
         $dir->save();
         $media = Media::find($dir->media_id);
-        $media->stage = 12;
+        $media->stage = 11;
         $media->save();
         $remarks = $request->input('remarks');
         $this->_insertMediaHistory($media,"edit",$remarks, $request->input('type'),$media->stage);
@@ -111,7 +111,7 @@ class RecoveryController extends Controller
         $media->no_recovery_reason = $request->input('no_recovery_reason');
         $media->no_recovery_reason_other = $request->input('no_recovery_reason_other');
         if(($request->input('clone_creation') =='No') || ($request->input('recoverable_data') =='No' && $request->input('type')=='RECOVERABLE-DATA'))
-            $media->stage = 11;
+            $media->stage = 14;
         $media->save();
         $remarks = $request->input('remarks');
         $this->_insertMediaHistory($media,"edit",$remarks, $request->input('type'),$media->stage);
@@ -167,7 +167,7 @@ class RecoveryController extends Controller
         $dir->save();
         $media = Media::find($dir->media_id);
         if($dir->rework == 'Yes')
-        $media->stage = 14;
+        $media->stage = 22;
         $media->no_recovery_reason = $request->input('no_recovery_reason');
         $media->no_recovery_reason_other = $request->input('no_recovery_reason_other');
         $media->save();
