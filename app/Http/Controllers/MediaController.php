@@ -241,6 +241,7 @@ class MediaController extends Controller
             $media[0]->fileUpload = FileUpload::where('media_id',$media[0]->id)->get();
             $media[0]->Directory_Listing = MediaDirectory::where('media_id',$media[0]->id)->first();
             $media[0]->mediaout = null;
+            $media[0]->wiping = DB::table('media_wiping')->select(DB::raw('media_wiping.*'))->where('media_wiping.media_id', '=',$id)->get();;
             $mediaout = DB::table('media_out')->select(DB::raw('media_out.*'))->where('media_out.media_id', '=',$id)->get();
             if(count($mediaout) > 0)
             {

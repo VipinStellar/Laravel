@@ -138,5 +138,9 @@ Route::group(['middleware' => ['api']], function() {
      Route::post('media/data-out', [MediaController::class, 'mediaDataout']);
      Route::post('recovery/requsetmediaout', [RecoveryController::class, 'requsetmediaout']);
      Route::post('recovery/responcemediaout', [RecoveryController::class, 'responcemediaout']);
+     Route::post('job/wiping-list', [JobController::class, 'wipingList']);
+     Route::get('job/request-wiping/{id}', [JobController::class, 'requestWiping']);
+     Route::post('job/update-wipe-status', [JobController::class, 'updateWipingStatus']);
+     Route::post('job/addwiping', [JobController::class,'addDummyWiping']);
      
 });
