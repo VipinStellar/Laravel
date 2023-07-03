@@ -150,8 +150,13 @@ class MediaController extends Controller
             $media = Media::find($mediaid);
             if($media->transfer_id !=null)
             {
-              $transfer = MediaTransfer::find($media->transfer_id);
-              $branches = BranchRelated::whereIn('branch_id',[$media->branch_id,$transfer->new_branch_id])->get();
+              $transfer = MediaTransfer::where('media_id',$media->id)->where('assets_type','Original Media')->get();
+              $new_branch_id = array();
+              foreach($transfer as $tra)
+              {
+                $new_branch_id[] = $tra->new_branch_id;
+              }
+              $branches = BranchRelated::whereIn('branch_id',[$media->branch_id,implode(',',$new_branch_id)])->get();
             }
             else
             $branches = BranchRelated::where('branch_id',$media->branch_id)->get();
@@ -241,7 +246,7 @@ class MediaController extends Controller
             $media[0]->fileUpload = FileUpload::where('media_id',$media[0]->id)->get();
             $media[0]->Directory_Listing = MediaDirectory::where('media_id',$media[0]->id)->first();
             $media[0]->mediaout = null;
-            $media[0]->wiping = DB::table('media_wiping')->select(DB::raw('media_wiping.*'))->where('media_wiping.media_id', '=',$id)->get();;
+            $media[0]->wiping = DB::table('media_wiping')->select(DB::raw('media_wiping.*,users.name as username'))->leftJoin('users','users.id', '=','media_wiping.user_id')->where('media_wiping.media_id', '=',$id)->get();;
             $mediaout = DB::table('media_out')->select(DB::raw('media_out.*'))->where('media_out.media_id', '=',$id)->get();
             if(count($mediaout) > 0)
             {

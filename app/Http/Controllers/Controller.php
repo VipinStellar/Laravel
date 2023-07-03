@@ -96,6 +96,12 @@ protected function _getPaginatedResult($query,$request)
       return $branchId;
   }
 
+  protected function getUserBranchid($userid)
+  {
+    $branchs = BranchRelated::where('user_id',$userid)->first();
+    return $branchs->branch_id;
+  }
+
   protected function _userCheckBrnach($bId)
   {
       $currnetBrnach = $this->_getBranchId();

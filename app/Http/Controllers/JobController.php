@@ -26,13 +26,14 @@ class JobController extends Controller
     public function wipingList(Request $request)
     {
        $branchId = implode(',',$this->_getBranchId());
-       $select = 'media_wiping.*,customer_detail.customer_name as customer_name,stage.stage_name as stage_name,media.media_type,media.customer_id,media.stage,media.user_id,media.zoho_id,media.job_id';
+       $select = 'media_wiping.*,customer_detail.customer_name as customer_name,stage.stage_name as stage_name,media.media_type,media.customer_id,media.stage,media.user_id,media.zoho_id,media.job_id,users.name,media.user_id as userid';
        $query = DB::table('media_wiping')->select(DB::raw($select));
+       $query->leftJoin('users', 'users.id', '=', 'media_wiping.user_id');
        $query->leftJoin('media','media.id', '=','media_wiping.media_id');
        $query->leftJoin('stage', 'stage.id', '=', 'media.stage');
        $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
        $query->whereRaw("media_wiping.branch_id in ($branchId)");
-       $query->where('status','=','0');
+       $query->where('media_wiping.status','=','0');
        $query->orderBy($request->input('orderBy'), $request->input('order'));
        $pageSize = $request->input('pageSize');
        $data = $query->paginate($pageSize,['*'],'page_no');
@@ -70,9 +71,17 @@ class JobController extends Controller
     public function updateWipingStatus(Request $request)
     {
         $wipe = MediaWiping::find($request->input('id'));
-        $wipe->status = "1";
+        $wipe->status = "0";
         $wipe->approve_wiping_date = Carbon::now()->toDateTimeString();
         $wipe->wiping_status = $request->input('wiping_status');
+        if($request->hasfile('file'))
+        {
+            $file = $request->file('file');
+            $path = $file->store('public/Upload/'.$request->input('media_id'));
+            $name = $file->getClientOriginalName();
+            $wipe->certificate= url('/')."/storage/app/".$path;
+            
+        }
         $wipe->save();
         $media = Media::find($wipe->media_id);
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'WIPING',$media->stage);
@@ -83,11 +92,10 @@ class JobController extends Controller
         $media  = Media::find($mediaId);
         if($media->transfer_id != null)
         {
-             $transfer = MediaTransfer::find($media->transfer_id);
              $user     =  UserAssign::where('media_id',$media->id)->orderBy('id','desc')->first();
              $wipe     =  new MediaWiping();
              $wipe->user_id = $user->user_id;
-             $wipe->branch_id = $transfer->new_branch_id;
+             $wipe->branch_id = $this->getUserBranchid($user->user_id);
              $wipe->media_id = $media->id;
              $wipe->request_wiping_date = Carbon::now()->toDateTimeString();
              $wipe->request_type = "BRANCH";
