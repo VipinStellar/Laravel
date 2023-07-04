@@ -71,7 +71,7 @@ class JobController extends Controller
     public function updateWipingStatus(Request $request)
     {
         $wipe = MediaWiping::find($request->input('id'));
-        $wipe->status = "0";
+        $wipe->status = "1";
         $wipe->approve_wiping_date = Carbon::now()->toDateTimeString();
         $wipe->wiping_status = $request->input('wiping_status');
         if($request->hasfile('file'))
