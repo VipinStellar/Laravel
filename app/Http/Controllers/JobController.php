@@ -22,6 +22,30 @@ class JobController extends Controller
     {
         $this->middleware('auth');
     }
+   // submit_timestamp <= DATE_FORMAT(DATE_ADD(CURRENT_DATE, INTERVAL 1 DAY),'%Y-%m-%d')
+    public function wipingDueList(Request $request)
+    {
+          $branchId = implode(',',$this->_getBranchId());
+          $select = 'transfer_media.*,stage.stage_name as stage_name,media.media_type,media.user_id,media.zoho_id,media.job_id';
+          $query = DB::table('transfer_media')->select(DB::raw($select));
+          $query->join('media','media.id', '=','transfer_media.media_id');
+          $query->leftJoin('stage', 'stage.id', '=', 'media.stage');
+          $query->where('transfer_media.assets_type','=','Clone');
+          $query->where('media.wiping_request','=',null);
+          $query->whereRaw("transfer_media.new_branch_id in ($branchId)");
+          $query->whereRaw("DATE_FORMAT(DATE_ADD(transfer_media.media_in_date, INTERVAL 7 DAY),'%Y-%m-%d')  <=DATE_FORMAT(CURRENT_DATE,'%Y-%m-%d')");
+          $query->orderBy($request->input('orderBy'), $request->input('order'));
+          $pageSize = $request->input('pageSize');
+          $data = $query->paginate($pageSize,['*'],'page_no');
+          $results = $data->items();
+          $count = $data->total();
+         $data = [
+             "draw" => $request->input('draw'),
+             "recordsTotal" => $count,
+             "data" => $results
+             ];
+             return json_encode($data);
+    }
 
     public function wipingList(Request $request)
     {

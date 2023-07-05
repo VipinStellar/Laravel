@@ -142,5 +142,6 @@ Route::group(['middleware' => ['api']], function() {
      Route::get('job/request-wiping/{id}', [JobController::class, 'requestWiping']);
      Route::post('job/update-wipe-status', [JobController::class, 'updateWipingStatus']);
      Route::post('job/addwiping', [JobController::class,'addDummyWiping']);
+     Route::post('job/wiping-due-list', [JobController::class,'wipingDueList']);
      
 });
