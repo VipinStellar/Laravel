@@ -37,9 +37,7 @@ Route::group(
         Route::get('profile', 'AuthController@profile');
         Route::post('refresh', 'AuthController@refresh');
         Route::post('forgot_password', 'AuthController@forgotPassword');
-        Route::post('mediaAnalysis', 'MediaApiController@mediaAnalysis');
-        Route::post('mediaAssessment', 'MediaApiController@mediaAssessment');
-        Route::post('changeStatus', 'MediaApiController@changeStatus');
+        Route::post('pre-inspection', 'MediaApiController@preInspection');
 
     }
 );
