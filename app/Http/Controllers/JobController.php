@@ -15,6 +15,7 @@ use App\Models\UserAssign;
 use DB;
 use App\Models\GatepassId;
 use App\Models\MediaWiping;
+use Helper;
 
 class JobController extends Controller
 {
@@ -71,27 +72,6 @@ class JobController extends Controller
              return json_encode($data);
     }
 
-    public function addDummyWiping(Request $request)
-    {
-        $jobid = $request->input('job_id');
-        if($jobid !=null && $jobid != '')
-        {
-          $media = Media::where('job_id',$jobid)->first();
-          if($media != null)
-          {
-            $user     =  UserAssign::where('media_id',$media->id)->orderBy('id','asc')->first();
-            $wipe     =  new MediaWiping();
-            $wipe->user_id = $user->user_id;
-            $wipe->branch_id = $media->branch_id;
-            $wipe->media_id = $media->id;
-            $wipe->request_wiping_date = Carbon::now()->toDateTimeString();
-            $wipe->request_type = "CRM";
-            $wipe->expected_wiping_date  = $this->_getDueDate(date('Y-m-d'),7);
-            $wipe->save();
-            $this->_insertMediaHistory($media,"edit","Wiping request",'WIPING',$media->stage);
-          }
-        }
-    }
     public function updateWipingStatus(Request $request)
     {
         $wipe = MediaWiping::find($request->input('id'));
@@ -109,6 +89,13 @@ class JobController extends Controller
         $wipe->save();
         $media = Media::find($wipe->media_id);
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'WIPING',$media->stage);
+        if($wipe->request_type == "CRM")
+        {
+          $media->Wipingstatus = $wipe->wiping_status;
+          $media->WipingDate = $wipe->approve_wiping_date;
+          Helper::sendZohoCrmData($media,'WIPING');
+          Helper::sendZohoCrmNotes($media,'INSPECTION',0,$request->input('remarks'));
+        }
     }
 
     public function requestWiping($mediaId)
@@ -253,6 +240,8 @@ class JobController extends Controller
       $query->where('media.id', '=',$media_id);
       $query->leftJoin('observation','observation.media_id', '=','media.id');
       $media =  $query->get();
+      if(count($media) > 0)
+      $media[0]->media_sapre_detail = json_decode($media[0]->media_sapre_detail);
       return response()->json($media[0]);
     }
 
@@ -290,6 +279,7 @@ class JobController extends Controller
         $Obser->encryption = $request->input('encryption');
         $Obser->virtual_translater = $request->input('virtual_translater');
         $Obser->media_interface = $request->input('media_interface');
+        $Obser->media_sapre_detail = json_encode($request->input('media_sapre_detail'));
         $Obser->save();
         $media = Media::find($Obser->media_id);
         $media->no_recovery_reason = $request->input('no_recovery_reason');
@@ -304,6 +294,18 @@ class JobController extends Controller
         $media->save();
         $remarks = $request->input('remarks');
         $this->_insertMediaHistory($media,"edit",$remarks,'OBSERVATION',$media->stage);
+        if($media->stage == 14)
+        {
+          Helper::sendZohoCrmData($media,'NOT-DONE');
+          Helper::sendZohoCrmNotes($media,'INSPECTION',0,$request->input('remarks'));
+        }
+        else if($media->stage != 14 && $media->recovery_possibility == "Yes")
+        {
+          $media->spare_required =$Obser->spare_required;
+          $media->media_sapre_detail =$Obser->media_sapre_detail;
+          Helper::sendZohoCrmData($media,'OBSERVATION');
+          Helper::sendZohoCrmNotes($media,'INSPECTION',0,$request->input('remarks'));
+        }
         return response()->json($Obser);
     }
 
@@ -417,11 +419,11 @@ class JobController extends Controller
       }
 
       $pass_no.= (($branch_code != '')? $branch_code.'/':'').str_pad($gatepass->id,4,"0",STR_PAD_LEFT);
-      $gatepass = Gatepass::find($gatepass->id);
       $gatepass->gatepass_no = $pass_no;
       $gatepass->save();
 
       $transfer_id = $request->input('transfer_id');
+      $otherAssets = $request->input('otherAssets');
       for($i=0; $i < count($transfer_id); $i++){
         // insert for gatepass id table
         $gatepass_id = new GatepassId();
@@ -436,6 +438,20 @@ class JobController extends Controller
         $media = Media::find($media_transfer->media_id);
         $remarks = "GatePass Created";
         $this->_insertMediaHistory($media,"add",$remarks,'GATEPASS-CREATED',$media->stage);
+        if($gatepass->dispatch_branch_id == 0 && $otherAssets[$i]['only_media'] == true && ($otherAssets[$i]['mediaType'] =="Data" || $otherAssets[$i]['mediaType'] =="Clone"))
+        {
+              $media->ref_name_num = $gatepass->ref_name_num;
+              $media->transfer_mode = $gatepass->transfer_mode;
+              $media->mediaOutType = 1;
+              Helper::sendZohoCrmData($media,'GATEPASS_UPDATE');
+        }
+        if($gatepass->dispatch_branch_id == 0 && $otherAssets[$i]['only_media'] == true && $otherAssets[$i]['mediaType'] =="Original Media")
+        {
+              $media->ref_name_num = $gatepass->ref_name_num;
+              $media->transfer_mode = $gatepass->transfer_mode;
+              $media->mediaOutType = 2;
+              Helper::sendZohoCrmData($media,'GATEPASS_UPDATE');
+        }
       }
       return response()->json('success');
     }

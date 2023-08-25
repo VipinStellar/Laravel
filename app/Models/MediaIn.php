@@ -19,7 +19,6 @@ class MediaIn extends Model
         'recovery_possibility',
         'required_days',
         'recovery_percentage',
-        'access_percentage',
         'tampering_required',
         'recoverable_data',
         'assessment_status',

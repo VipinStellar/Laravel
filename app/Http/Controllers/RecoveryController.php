@@ -14,7 +14,7 @@ use App\Models\FileUpload;
 use App\Models\MediaOut;
 use App\Models\MediaTransfer;
 use DB;
-
+use Helper;
 
 
 class RecoveryController extends Controller
@@ -74,7 +74,10 @@ class RecoveryController extends Controller
         $media->save();
         $remarks = $request->input('remarks');
         $this->_insertMediaHistory($media,"edit",$remarks, $request->input('type'),$media->stage);
-
+        $media->DL = $dir;
+        Helper::sendZohoCrmData($media,'DL');
+        Helper::sendZohoCrmNotes($media,'INSPECTION',0,$request->input('remarks'));
+        return response()->json($media);
     }
 
 
@@ -113,8 +116,14 @@ class RecoveryController extends Controller
         if(($request->input('clone_creation') =='No') || ($request->input('recoverable_data') =='No' && $request->input('type')=='RECOVERABLE-DATA'))
             $media->stage = 14;
         $media->save();
+        $media->Recovery = $rec;
+        $media->ProcessType = $request->input('type');
         $remarks = $request->input('remarks');
         $this->_insertMediaHistory($media,"edit",$remarks, $request->input('type'),$media->stage);
+        Helper::sendZohoCrmData($media,$request->input('type'));
+        Helper::sendZohoCrmNotes($media,'INSPECTION',0,$request->input('remarks'));
+        return response()->json($media);
+
     }
 
     public function getdeptUser($deptId)
@@ -157,6 +166,8 @@ class RecoveryController extends Controller
         $remarks = "Extension requested for ".$request->input('extension_day')." days. <br>".$request->input('remarks');
         $media->save();
         $this->_insertMediaHistory($media,"edit",$remarks,$request->input('type'),$media->stage,'Pending');
+        $media->extReason = $request->input('remarks');
+        Helper::sendZohoCrmData($media,'EXTENSION-DAY');
     }
 
     public function updateDl(Request $request)

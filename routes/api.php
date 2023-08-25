@@ -38,6 +38,12 @@ Route::group(
         Route::post('refresh', 'AuthController@refresh');
         Route::post('forgot_password', 'AuthController@forgotPassword');
         Route::post('pre-inspection', 'MediaApiController@preInspection');
+        Route::post('media-in', 'MediaApiController@mediaIn');
+        Route::post('media-status', 'MediaApiController@changeStatus');
+        Route::post('extension-update','MediaApiController@extensionUpdate');
+        Route::post('dl-confirm','MediaApiController@mediaDlConfirm');
+        Route::post('requestMediaOut','MediaApiController@requestMediaOut');
+        Route::post('requestMediaWiping','MediaApiController@requestMediaWiping');
 
     }
 );
@@ -106,10 +112,6 @@ Route::group(['middleware' => ['api']], function() {
     Route::post('media/saveMediateam',[MediaController::class, 'updateMediaTeam']);
     Route::post('media/upload', [MediaController::class, 'upload']);
     Route::get('media/deleteFile/{id}', [MediaController::class,'deleteFile']);
-    Route::post('media/addDummy', [MediaController::class,'addDummyMedia']);
-    Route::post('media/updateDummy', [MediaController::class,'updateDummyMedia']);
-    Route::get('media/UpdateStausDummyMedia/{id}', [MediaController::class,'UpdateStausDummyMedia']);
-    Route::get('media/UpdateStausDl/{id}', [MediaController::class,'UpdateStausDl']);
     ///////End 
     /// GatePass List
     Route::post('job/gatepasslist', [JobController::class, 'gatepasslist']);
@@ -127,11 +129,9 @@ Route::group(['middleware' => ['api']], function() {
      Route::post('recovery/update-allot-job', [RecoveryController::class, 'updateAllotJob']);
      Route::post('recovery/update-branch-clone-user', [RecoveryController::class, 'updateBranchCloneUser']);
      Route::post('recovery/update-extension', [RecoveryController::class, 'updateEextension']);
-     Route::get('media/comman-history/{id}', [MediaController::class, '_commanHistory']);
      Route::get('recovery/fatch-directory/{id}', [RecoveryController::class, 'getDirectory']);
      Route::post('recovery/update-directory', [RecoveryController::class, 'saveDirectory']);
      Route::post('recovery/update-media-dl', [RecoveryController::class, 'updateDl']);
-     Route::get('media/extension-update-dummy/{id}', [MediaController::class,'extensionUpdateDummy']);
      Route::get('media/original-media/{id}', [MediaController::class, 'originalMedia']);
      Route::post('media/data-out', [MediaController::class, 'mediaDataout']);
      Route::post('recovery/requsetmediaout', [RecoveryController::class, 'requsetmediaout']);
@@ -139,7 +139,6 @@ Route::group(['middleware' => ['api']], function() {
      Route::post('job/wiping-list', [JobController::class, 'wipingList']);
      Route::get('job/request-wiping/{id}', [JobController::class, 'requestWiping']);
      Route::post('job/update-wipe-status', [JobController::class, 'updateWipingStatus']);
-     Route::post('job/addwiping', [JobController::class,'addDummyWiping']);
      Route::post('job/wiping-due-list', [JobController::class,'wipingDueList']);
      
 });

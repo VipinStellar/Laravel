@@ -21,6 +21,8 @@ use App\Models\FileUpload;
 use App\Models\MediaDirectory;
 use App\Models\MediaOut;
 use App\Models\UserAssign;
+use Helper;
+
 class MediaController extends Controller
 {
 
@@ -252,7 +254,10 @@ class MediaController extends Controller
             {
                 foreach($mediaout as $medias)
                 {
+                    if(is_numeric($medias->user_id_from))
                     $medias->resBy = $this->_getUserName($medias->user_id_from);
+                    else
+                    $medias->resBy = $medias->user_id_from;
                     $medias->resTo = $this->_getUserName($medias->user_id_to);
                 }
                 $media[0]->mediaout = $mediaout;
@@ -280,31 +285,6 @@ class MediaController extends Controller
         return response()->json($history);
     }
 
-    private function _history($id,$type,$module)
-    {
-        $select = 'media_history.*,users.name as user_name';
-        $query = DB::table('media_history')->select(DB::raw($select));
-        $query->where('media_history.media_id', '=',$id);
-        $query->where('media_history.action_type', '=',$type);
-        $query->where('media_history.module_type', '=',$module);
-        $query->leftJoin('users', 'users.id', '=', 'media_history.added_by');
-        $query->orderBy('id','asc');
-        $history =  $query->get();
-        return $history;
-    }
-
-    public function _commanHistory($media_id)
-    {
-        $his = ['obserHis'=>$this->_history($media_id,'edit','observation'),
-                'cloneCreation'=>$this->_history($media_id,'edit','cloneCreation'),
-                'dataEncrypted'=>$this->_history($media_id,'edit','dataEncrypted'),
-                'dataEncrypted'=>$this->_history($media_id,'edit','dataEncrypted'),
-                'recoverableData'=>$this->_history($media_id,'edit','recoverableData'),                
-                'allotJob'=>$this->_history($media_id,'edit','allotJob'),                
-                'branchClone'=>$this->_history($media_id,'edit','branchClone'),                
-                ];
-        return response()->json($his);
-    }
 
     public function getMediaUserList($id)
     {
@@ -400,6 +380,11 @@ class MediaController extends Controller
         $media->last_updated  = Carbon::now()->toDateTimeString();
         $media->save();
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'PRE-ANALYSIS',$media->stage);
+        if($media->stage == 3)
+        {
+			Helper::sendZohoCrmData($media,'PRE-ANALYSIS');
+			Helper::sendZohoCrmNotes($media,'PRE-ANALYSIS',0,$request->input('remarks'));
+        }
         //$this->_sendMailMediaStatusChanged($oldMedia,$media);
         return response()->json($media);
     }
@@ -466,15 +451,14 @@ class MediaController extends Controller
                     $media->extension_day = $request->input('extension_day');
                     if($request->input('extension_required') == 'Yes' && $request->input('extension_day') !=null)
                     {
-                            if($media->stage == '1' || $media->stage == '2')
-                                $media->pre_due_date = $this->_getDueDate($media->pre_due_date,$request->input('extension_day'));
-                            else if($media->stage == '4' || $media->stage == '5')
-                                $media->assessment_due_date = $this->_getDueDate($media->assessment_due_date,$request->input('extension_day'));
-                            else if($media->stage > 7)
+                             if($media->stage != 1 && $media->stage !=2 && $media->stage !=3)
                             {
                                 $media->extension_approve = 1;
                                 $remarks = "Extension requested for ".$request->input('extension_day')." days. <br>".$request->input('reason');
                                 $this->_insertMediaHistory($media,"edit",$remarks,'EXTENSION-DAY',$media->stage,'Pending');
+                                $media->extReason = $request->input('reason');
+                                Helper::sendZohoCrmData($media,'EXTENSION-DAY');
+                                unset($media['extReason']);
                             }
 
                     }
@@ -512,9 +496,19 @@ class MediaController extends Controller
                 $media->stage = 20;
                 else if($media->stage == 16)
                 $media->stage = 21;
+                Helper::sendZohoCrmData($media,'MEDIA_OUT');
+                Helper::sendZohoCrmNotes($media,'INSPECTION',0,$request->input('reason'));
             }
             else if($request->input('assets_type') == 'Data' || $request->input('assets_type') == 'Clone')
-            $media->stage = 16;
+            {
+              $media->stage = 16;
+              $media->DL = MediaDirectory::where('media_id',$media->id)->first();
+              if($media->DL != null && $media->DL !='')
+              $media->DL->copyin_details = json_decode($media->DL->copyin_details,TRUE);
+              Helper::sendZohoCrmData($media,'DATAOUT');
+              Helper::sendZohoCrmNotes($media,'INSPECTION',0,$request->input('reason'));
+              unset($media['DL']);
+            }
             $media->save();
             $remarks = $request->input('assets_type')." Transferred From ".$oldBranch->branch_name." to Client by ".$this->_getUserName(auth()->user()->id).".";
         }
@@ -554,7 +548,6 @@ class MediaController extends Controller
         $media->media_received = $request->input('media_received');
         $media->media_condition = $request->input('media_condition');
         $media->reading_process = $request->input('reading_process');
-        $media->access_percentage = $request->input('access_percentage');
         $media->disk_type = $request->input('disk_type');
         $media->reading_process = $request->input('reading_process');
         $media->state_identified = $request->input('state_identified');
@@ -570,11 +563,15 @@ class MediaController extends Controller
         $media->no_recovery_reason = $request->input('no_recovery_reason');
         $media->no_recovery_reason_other = $request->input('no_recovery_reason_other');
         $media->encryption_name = $request->input('encryption_name');
-        if($media->stage == 5 && $request->input('extension_required') == 'Yes' && $request->input('extension_day') != null)
+        $extReason = null;
+        if($media->stage == 5 && $request->input('extension_required') == 'Yes' && $request->input('extension_day') != null && $media->extension_approve !=1)
         {
-            $media->extension_required = $request->input('extension_required');
-            $media->extension_day =  $request->input('extension_day');
-            $media->assessment_due_date = $this->_getDueDate($media->assessment_due_date,$request->input('extension_day'));
+                    $media->extension_approve = 1;
+                    //$media->extension_approve = $request->input('extension_required');
+                    $media->extension_day = $request->input('extension_day');
+                    $extReason = "Extension requested";
+                    $extReasons = "Extension requested for ".$request->input('extension_day')." days. <br>".$request->input('remarks');
+                    $this->_insertMediaHistory($media,"edit",$extReasons,'EXTENSION-DAY',$media->stage,'Pending');
         }
         $media->notes = $request->input('notes');
         $media->total_drive = json_encode($request->input('total_drive'));
@@ -583,15 +580,13 @@ class MediaController extends Controller
         $media->save();
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'INSPECTION',$media->stage);
         if($media->recovery_possibility == 'Yes' && $media->stage == 6)
-        {
             $media->stage = 8;
-            $media->save();
-        }
-        if($media->recovery_possibility == 'No' && $media->stage == 6)
-        {
+       elseif($media->recovery_possibility == 'No' && $media->stage == 6)
             $media->stage = 7;
-            $media->save();
-        }
+        $media->save();
+            $media->extReason = $extReason;
+            Helper::sendZohoCrmData($media,'INSPECTION');
+            Helper::sendZohoCrmNotes($media,'INSPECTION',0,$request->input('remarks'));
         //$this->_sendMailMediaStatusChanged($oldMedia,$media);
         return response()->json($media);
     }
@@ -649,7 +644,9 @@ class MediaController extends Controller
             $save->media_id = $media_id;
             $save->store_path= url('/')."/storage/app/".$path;
             $save->save();
-
+            $media = Media::find($media_id);
+            $media->url = $save->store_path;
+           // Helper::sendAttachmentZoho($media,'Attachment');
              return response()->json([
                         "success" => true,
                         "message" => "File successfully uploaded",
@@ -697,40 +694,6 @@ class MediaController extends Controller
 	// 		}
     // }
 
-    public function addDummyMedia(Request $request)
-    {
-        $cus = new CustomerDetail();
-        $cus->customer_name = $this->nameGenerate();
-        $cus->save();
-        $media = new Media();
-        $media->media_type = $request->input('media_type');
-        $media->branch_id = $request->input('branch_id');
-        $media->zoho_id = rand();
-        $media->zoho_user = $this->_getUserName(auth()->user()->id);
-        $media->created_on = Carbon::now()->toDateTimeString();
-        $media->customer_id = $cus->id;
-        $media->stage = 1;
-        $media->pre_due_date = $this->_getDueDate(date('Y-m-d'),1);
-        $media->save();
-        $remarks = (!empty($media->zoho_user) ? "Case added by Zoho user ".$media->zoho_user : "Case added by Zoho user");
-        $this->_insertMediaHistory($media,"edit",$remarks,'PRE-ANALYSIS',$media->stage);
-        return response()->json($media);
-
-    }
-
-    public function updateDummyMedia(Request $request)
-    {
-        $media = Media::find($request->input('id'));
-        $media->job_id = strtoupper(substr($request->input('branch_name'), 0, 3)).'/'.rand(10,100); 
-        $media->zoho_job_id = rand();
-        $media->assessment_due_date = $this->_getDueDate(date('Y-m-d'),2);
-        $media->stage = 4;
-        $media->save();
-        $remarks = (!empty($this->_getUserName(auth()->user()->id)) ? "Data updated by Zoho user ".$this->_getUserName(auth()->user()->id) : "Data updated by Zoho user");
-        $this->_insertMediaHistory($media,"edit",$remarks,'INSPECTION',$media->stage);
-        return response()->json($media);
-    }
-
     function nameGenerate() {
         $key = '';
         $keys = array_merge(range('a', 'z'), range('A', 'Z'));
@@ -740,16 +703,6 @@ class MediaController extends Controller
         return strtoupper($key);
     }
 
-    public function UpdateStausDummyMedia($id)
-    {
-        $media = Media::find($id);
-        $media->stage = 9;
-        if($media->required_days != null)
-        $media->due_date = $this->_getDueDate(date('Y-m-d'),$media->required_days);
-        $media->save();
-        return response()->json($media);
-    }
-
     public function mediaDataout(Request $request)
     {
         $dl = MediaDirectory::find($request->input('id'));
@@ -757,33 +710,14 @@ class MediaController extends Controller
         $dl->frontdisk_out_req ='1';
         $dl->save();
         $media = Media::find($request->input('media_id'));
+        if($dl->copyin == "Online Transfer")
+        {
+            $media->stage = 16;
+            $media->save();
+            $media->DL = $dl;
+            Helper::sendZohoCrmData($media,'DATAOUT');
+            Helper::sendZohoCrmNotes($media,'INSPECTION',0,$request->input('remarks'));
+        }
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'DATA-OUT',$media->stage);
     }
-
-    public function UpdateStausDl($id)
-    {
-        $media = Media::find($id);
-        $media->stage = 12;
-        $media->save();
-        $dl = MediaDirectory::where('media_id',$id)->first();
-        $dl->dl_status = 'Yes';
-        $dl->copyin = 'Stellar Media';
-        $dl->copyin_details = '[{"media_sn":"123","media_model":"SDD12","capacity":"500 GB","media_make":"Test","inventry_num":null}]';
-        $dl->save();
-        return response()->json($media);
-    }
-
-    public function extensionUpdateDummy($id)
-    {
-        $media = Media::find($id);
-        $media->extension_approve = 0;
-        if($media->due_date != null)
-        $media->due_date = $this->_getDueDate($media->due_date,$media->extension_day);
-        else
-        $media->due_date = $this->_getDueDate(date('Y-m-d'),$media->extension_day);
-        $media->save();
-        $this->_insertMediaHistory($media,"edit",'Extension Approved','EXTENSION-DAY',$media->stage,'Approved');
-        return response()->json($media);
-    }
-
 }
