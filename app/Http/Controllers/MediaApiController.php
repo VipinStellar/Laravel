@@ -24,7 +24,38 @@ class MediaApiController extends Controller
     
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['preInspection','mediaIn','changeStatus','extensionUpdate','mediaDlConfirm','requestMediaOut','requestMediaWiping','accountSave']]);
+        $this->middleware('auth:api', ['except' => ['preInspection','mediaIn','changeStatus','extensionUpdate','mediaDlConfirm','requestMediaOut','requestMediaWiping','accountSave','contactSave']]);
+    }
+
+    public function contactSave()
+    {
+        $res = Helper::getMimsCrmAuthToken();
+        if($res['Auth'] == '1' && $res['status'] == 'SUCCESS')
+        {
+            $required_fields = array('zoho_contact_id','first_name','last_name','email','company_id','branch_id','billing_street','billing_city','billing_state','billing_code','billing_country','shipping_street','shipping_city','shipping_state','shipping_code','shipping_country','description_information');
+            $contact = Contact::where('zoho_contact_id', Helper::sanitize_input(Helper::arrayIndex($res['data'],'zoho_contact_id')))->first();
+            if($contact == null || $contact =='')
+              $contact = new Contact();
+              $company->zoho_contact_id = Helper::sanitize_input(Helper::arrayIndex($res['data'],'zoho_contact_id'));
+              $contact->first_name = Helper::sanitize_input(Helper::arrayIndex($res['data'],'first_name'));
+              $contact->last_name = Helper::sanitize_input(Helper::arrayIndex($res['data'],'last_name'));
+              $contact->email = Helper::sanitize_input(Helper::arrayIndex($res['data'],'email'));
+              $contact->company_id = Helper::sanitize_input(Helper::arrayIndex($res['data'],'company_id'));
+              $contact->branch_id = Helper::sanitize_input(Helper::arrayIndex($res['data'],'branch_id'));
+              $contact->billing_street = Helper::sanitize_input(Helper::arrayIndex($res['data'],'billing_street'));
+              $contact->billing_city = Helper::sanitize_input(Helper::arrayIndex($res['data'],'billing_city'));
+              $contact->billing_state = Helper::sanitize_input(Helper::arrayIndex($res['data'],'billing_state'));
+              $contact->billing_code = Helper::sanitize_input(Helper::arrayIndex($res['data'],'billing_code'));
+              $contact->billing_country = Helper::sanitize_input(Helper::arrayIndex($res['data'],'billing_country'));
+              $contact->shipping_street = Helper::sanitize_input(Helper::arrayIndex($res['data'],'shipping_street'));
+              $contact->shipping_city = Helper::sanitize_input(Helper::arrayIndex($res['data'],'shipping_city'));
+              $contact->shipping_state = Helper::sanitize_input(Helper::arrayIndex($res['data'],'shipping_state'));
+              $contact->shipping_code = Helper::sanitize_input(Helper::arrayIndex($res['data'],'shipping_code'));
+              $contact->shipping_country = Helper::sanitize_input(Helper::arrayIndex($res['data'],'shipping_country'));
+              $contact->description_information = Helper::sanitize_input(Helper::arrayIndex($res['data'],'description_information'));
+              $contact->save();
+        }
+         return $res;
     }
 
     public function accountSave()

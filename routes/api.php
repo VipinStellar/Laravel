@@ -47,6 +47,7 @@ Route::group(
         Route::post('requestMediaOut','MediaApiController@requestMediaOut');
         Route::post('requestMediaWiping','MediaApiController@requestMediaWiping');
         Route::post('accountSave','MediaApiController@accountSave');
+        Route::post('contactSave','MediaApiController@contactSave');
 
     }
 );
