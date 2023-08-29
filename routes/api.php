@@ -14,6 +14,7 @@ use App\Http\Controllers\JobController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\RecoveryController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\ContactController;
 
 
 /*
@@ -145,4 +146,5 @@ Route::group(['middleware' => ['api']], function() {
      /////////////Company
 
      Route::post('company/company-list', [CompanyController::class, 'companyList']);
+     Route::post('contact/contact-list', [ContactController::class, 'contactList']);
 });
