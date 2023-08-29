@@ -17,13 +17,42 @@ use App\Models\MediaDirectory;
 use App\Models\MediaOut;
 use App\Models\UserAssign;
 use App\Models\MediaWiping;
+use App\Models\Company;
 
 class MediaApiController extends Controller
 {
     
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['preInspection','mediaIn','changeStatus','extensionUpdate','mediaDlConfirm','requestMediaOut','requestMediaWiping']]);
+        $this->middleware('auth:api', ['except' => ['preInspection','mediaIn','changeStatus','extensionUpdate','mediaDlConfirm','requestMediaOut','requestMediaWiping','accountSave']]);
+    }
+
+    public function accountSave()
+    {
+        $res = Helper::getMimsCrmAuthToken();
+        if($res['Auth'] == '1' && $res['status'] == 'SUCCESS')
+        {
+            $required_fields = array('zoho_company_id','company_name','gst_number','billing_street','billing_city','billing_state','billing_code','billing_country','shipping_street','shipping_city','shipping_state','shipping_code','shipping_country','description_information');
+            $company = Company::where('zoho_company_id', Helper::sanitize_input(Helper::arrayIndex($res['data'],'zoho_company_id')))->first();
+            if($company == null || $company =='')
+              $company = new Company();
+              $company->zoho_company_id = Helper::sanitize_input(Helper::arrayIndex($res['data'],'zoho_company_id'));
+              $company->company_name = Helper::sanitize_input(Helper::arrayIndex($res['data'],'company_name'));
+              $company->gst_number = Helper::sanitize_input(Helper::arrayIndex($res['data'],'gst_number'));
+              $company->billing_street = Helper::sanitize_input(Helper::arrayIndex($res['data'],'billing_street'));
+              $company->billing_city = Helper::sanitize_input(Helper::arrayIndex($res['data'],'billing_city'));
+              $company->billing_state = Helper::sanitize_input(Helper::arrayIndex($res['data'],'billing_state'));
+              $company->billing_code = Helper::sanitize_input(Helper::arrayIndex($res['data'],'billing_code'));
+              $company->billing_country = Helper::sanitize_input(Helper::arrayIndex($res['data'],'billing_country'));
+              $company->shipping_street = Helper::sanitize_input(Helper::arrayIndex($res['data'],'shipping_street'));
+              $company->shipping_city = Helper::sanitize_input(Helper::arrayIndex($res['data'],'shipping_city'));
+              $company->shipping_state = Helper::sanitize_input(Helper::arrayIndex($res['data'],'shipping_state'));
+              $company->shipping_code = Helper::sanitize_input(Helper::arrayIndex($res['data'],'shipping_code'));
+              $company->shipping_country = Helper::sanitize_input(Helper::arrayIndex($res['data'],'shipping_country'));
+              $company->description_information = Helper::sanitize_input(Helper::arrayIndex($res['data'],'description_information'));
+              $company->save();
+        }
+         return $res;
     }
 
     public function requestMediaWiping()

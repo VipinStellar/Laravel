@@ -13,6 +13,7 @@ use App\Http\Controllers\MediaController;
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\RecoveryController;
+use App\Http\Controllers\CompanyController;
 
 
 /*
@@ -44,6 +45,7 @@ Route::group(
         Route::post('dl-confirm','MediaApiController@mediaDlConfirm');
         Route::post('requestMediaOut','MediaApiController@requestMediaOut');
         Route::post('requestMediaWiping','MediaApiController@requestMediaWiping');
+        Route::post('accountSave','MediaApiController@accountSave');
 
     }
 );
@@ -140,5 +142,7 @@ Route::group(['middleware' => ['api']], function() {
      Route::get('job/request-wiping/{id}', [JobController::class, 'requestWiping']);
      Route::post('job/update-wipe-status', [JobController::class, 'updateWipingStatus']);
      Route::post('job/wiping-due-list', [JobController::class,'wipingDueList']);
-     
+     /////////////Company
+
+     Route::post('company/company-list', [CompanyController::class, 'companyList']);
 });
