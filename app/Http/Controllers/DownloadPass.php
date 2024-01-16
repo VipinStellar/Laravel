@@ -22,7 +22,7 @@ class DownloadPass extends Controller
       $other_assets = json_decode($results[0]->other_assets);
       
       /// For gatepass Table data
-      $select1 = 'media.media_type,media.job_id,media.zoho_id,media.media_serial,media.media_make,media.media_model';
+      $select1 = 'media.media_type,media.job_id,media.deal_id,media.media_serial,media.media_make,media.media_model';
       $query1   = DB::table('gatepass_id')->select(DB::raw($select1));
       $query1->leftJoin("transfer_media","gatepass_id.transfer_id", "=", "transfer_media.id");
       $query1->leftJoin("media","transfer_media.media_id", "=", "media.id");
@@ -31,8 +31,8 @@ class DownloadPass extends Controller
       /// Data Set For Print
       for($i=0; $i < count($other_assets); $i++){
              foreach($media_detail as $media){
-              $matrial_job_id = ($media->job_id !='' && $media->job_id != null) ? $media->job_id : $media->zoho_id;
-            if($other_assets[$i]->only_media && ($other_assets[$i]->assets_job_id == $media->job_id || $other_assets[$i]->assets_job_id == $media->zoho_id)){
+              $matrial_job_id = ($media->job_id !='' && $media->job_id != null) ? $media->job_id : $media->deal_id;
+            if($other_assets[$i]->only_media && ($other_assets[$i]->assets_job_id == $media->job_id || $other_assets[$i]->assets_job_id == $media->deal_id)){
                 $other_assets[$i]->material_name = $media->media_type;
                 $material_description =($matrial_job_id != '' && $matrial_job_id != null)? '<strong>Job ID - </strong>'.$matrial_job_id.', ':'';
                 $material_description.=($media->media_serial !='' && $media->media_serial != null)?'<strong>Media Serial - </strong>'.$media->media_serial.', ':'';

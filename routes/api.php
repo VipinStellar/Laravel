@@ -15,7 +15,9 @@ use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\RecoveryController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ContactController;
-
+use App\Http\Controllers\PaymentApiController;
+use App\Http\Controllers\ReceiptMasterController;
+use App\Http\Controllers\EmailTemplateController;
 
 /*
     |--------------------------------------------------------------------------
@@ -40,15 +42,13 @@ Route::group(
         Route::post('refresh', 'AuthController@refresh');
         Route::post('forgot_password', 'AuthController@forgotPassword');
         Route::post('pre-inspection', 'MediaApiController@preInspection');
-        Route::post('media-in', 'MediaApiController@mediaIn');
-        Route::post('media-status', 'MediaApiController@changeStatus');
-        Route::post('extension-update','MediaApiController@extensionUpdate');
-        Route::post('dl-confirm','MediaApiController@mediaDlConfirm');
-        Route::post('requestMediaOut','MediaApiController@requestMediaOut');
-        Route::post('requestMediaWiping','MediaApiController@requestMediaWiping');
         Route::post('accountSave','MediaApiController@accountSave');
-        Route::post('contactSave','MediaApiController@contactSave');
-
+		Route::post('contactSave','MediaApiController@contactSave');
+		Route::post('quote-update','MediaApiController@quoteUpdate');
+		Route::post('job-owner-change','MediaApiController@JobOwnerChange');
+		Route::post('deal-name-change','MediaApiController@DealNameChange');
+		Route::post('media-price','MediaApiController@getMediaPrice');
+		Route::post('generate-invoice','MediaApiController@addAnalysisCharges');
     }
 );
 
@@ -127,25 +127,52 @@ Route::group(['middleware' => ['api']], function() {
      Route::get('inventory/fatch/{id}', [InventoryController::class, 'getInventory']);
      
      //Recovery
+     Route::get('media/send-attachment/{id}', [MediaController::class, 'SendAttahment']);
      Route::get('recovery/fatch-recovery/{id}', [RecoveryController::class, '_getRecovery']);
      Route::get('recovery/dept-user/{id}', [RecoveryController::class, 'getdeptUser']);
      Route::post('recovery/update', [RecoveryController::class, 'recoverySave']);
+     Route::post('recovery/notify-tech', [RecoveryController::class, 'notifyTech']);
      Route::post('recovery/update-allot-job', [RecoveryController::class, 'updateAllotJob']);
      Route::post('recovery/update-branch-clone-user', [RecoveryController::class, 'updateBranchCloneUser']);
-     Route::post('recovery/update-extension', [RecoveryController::class, 'updateEextension']);
+     Route::post('recovery/request-extension', [RecoveryController::class, 'requestEextension']);
      Route::get('recovery/fatch-directory/{id}', [RecoveryController::class, 'getDirectory']);
      Route::post('recovery/update-directory', [RecoveryController::class, 'saveDirectory']);
+     Route::post('recovery/update-client-data', [RecoveryController::class, 'updateClentdata']);
+     Route::post('recovery/rework-update', [RecoveryController::class, 'updateRework']);
      Route::post('recovery/update-media-dl', [RecoveryController::class, 'updateDl']);
      Route::get('media/original-media/{id}', [MediaController::class, 'originalMedia']);
      Route::post('media/data-out', [MediaController::class, 'mediaDataout']);
      Route::post('recovery/requsetmediaout', [RecoveryController::class, 'requsetmediaout']);
      Route::post('recovery/responcemediaout', [RecoveryController::class, 'responcemediaout']);
+     Route::post('recovery/send-media-to-client', [RecoveryController::class, 'sendMediaToclient']);
      Route::post('job/wiping-list', [JobController::class, 'wipingList']);
-     Route::get('job/request-wiping/{id}', [JobController::class, 'requestWiping']);
+     Route::get('job/request-wiping/{id}/{type}', [JobController::class, 'requestWiping']);
      Route::post('job/update-wipe-status', [JobController::class, 'updateWipingStatus']);
      Route::post('job/wiping-due-list', [JobController::class,'wipingDueList']);
-     /////////////Company
+     Route::post('media/media-status-update', [MediaController::class,'updateStatusMedia']);
+     Route::post('recovery/update-extension', [RecoveryController::class, 'updateEextension']);
+     Route::post('recovery/update-price', [RecoveryController::class, 'updatePrice']);
+     Route::get('media/recovery-charges/{id}', [MediaController::class, 'getRecoveryCharges']);
+     Route::post('recovery/add-quotation', [RecoveryController::class, 'addQuotation']);
+     Route::post('payment/add-payment', [PaymentApiController::class, 'addPayment']);
+     Route::post('payment/list', [PaymentApiController::class, 'paymentList']);
+     Route::get('payment/generate-invoice/{id}', [PaymentApiController::class, 'generateInvoice']);
+     Route::post('payment/update-po-number', [PaymentApiController::class, 'updatePoNumber']);
+     Route::get('payment/generate-irn/{invoiceId}', [PaymentApiController::class, 'generateIrn']);
+    /////////////Company
 
-     Route::post('company/company-list', [CompanyController::class, 'companyList']);
-     Route::post('contact/contact-list', [ContactController::class, 'contactList']);
+    Route::post('company/company-list', [CompanyController::class, 'companyList']);
+    Route::post('company/update-company', [CompanyController::class, 'updateCompany']);
+    Route::post('contact/update-contact', [ContactController::class, 'updateContact']);
+    Route::post('contact/contact-list', [ContactController::class, 'contactList']);
+    Route::get('contact/{id}', [ContactController::class, 'getContact']);
+    Route::post('receipt/list', [ReceiptMasterController::class, 'receiptList']); 
+    Route::post('receipt/update', [ReceiptMasterController::class, 'addReceipt']); 
+    Route::get('receipt/getreceipt/{type}/{id}', [ReceiptMasterController::class, 'getReceiptDetails']);
+    Route::post('template/list', [EmailTemplateController::class, 'templateList']);
+     Route::post('template/add', [EmailTemplateController::class, 'templateAdd']);
+     Route::get('template/detail/{id}', [EmailTemplateController::class, 'templateDetail']);
+     Route::get('template/delete/{id}', [EmailTemplateController::class, 'deleteTemplate']);
+
+    
 });

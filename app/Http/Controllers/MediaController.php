@@ -15,13 +15,19 @@ use App\Models\Gatepass;
 use App\Models\User;
 use App\Models\Stage;
 use App\Models\Branch;
+use App\Models\Observation;
+use App\Models\Recovery;
 use DB;
-use App\Models\CustomerDetail;
 use App\Models\FileUpload;
 use App\Models\MediaDirectory;
 use App\Models\MediaOut;
 use App\Models\UserAssign;
+use App\Models\MediaPrice;
 use Helper;
+use App\Models\FinalPrice;
+use App\Models\MediaClientOut;
+use App\Models\ReceiptMaster;
+
 
 class MediaController extends Controller
 {
@@ -34,11 +40,11 @@ class MediaController extends Controller
     public function mediaOutList(Request $request)
     {
         $branchId = implode(',',$this->_getBranchId());
-        $select = 'media.*, branch.branch_name as branch_name,customer_detail.customer_name as customer_name,stage.stage_name as stage_name';
+        $select = 'media.*, branch.branch_name as branch_name,contact.customer_name as customer_name,stage.stage_name as stage_name';
         $query = DB::table('media')->select(DB::raw($select));
         $query->leftJoin('branch', 'branch.id', '=', 'media.branch_id');
         $query->leftJoin('stage', 'stage.id', '=', 'media.stage');
-        $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
+        $query->leftJoin('contact','contact.zoho_contact_id', '=','media.customer_id');
         $query->WhereIn('media.stage',[9,10,11,15]);
         $query->orderBy($request->input('orderBy'), $request->input('order'));
         $pageSize = $request->input('pageSize');
@@ -54,6 +60,69 @@ class MediaController extends Controller
               
     }
 
+    public function updateStatusMedia(Request $request)
+    {
+        $media = Media::find($request->input('media_id'));
+        $oldBoj = $media->replicate();
+        $media->stage = $request->input('status');
+        $inputStatus = $request->input('status');
+        if($request->input('status') == 4 && $media->job_id == null)
+        {
+            $branch = Branch::find($media->branch_id);
+            $media->job_id = $branch->branch_code."/".($branch->branch_series + 1);
+            $branch->branch_series = $branch->branch_series + 1;
+            $branch->save();
+            $media->assessment_due_date = $this->_getDueDate(date('Y-m-d'),2);
+        }
+        else if($request->input('status') == 9 && $media->job_id != null)
+        {
+            $mediaDate = MediaPrice::where('media_id', $media->id)->where('selected_plan','1')->first();
+            if($mediaDate !=null && $media !='')
+            {
+                    if($mediaDate->estimated_days != null)
+                        $media->due_date = $this->_getDueDate(date('Y-m-d'),$mediaDate->estimated_days);
+                    else
+                        $media->due_date = $this->_getDueDate(date('Y-m-d'),$media->required_days);
+            }
+            else
+            {
+                 $media->due_date = $this->_getDueDate(date('Y-m-d'),$media->required_days);
+            }
+        }
+        if(($request->input('status') == 4 && $media->tampered_status == 'Tampered' && $media->mode_of_order == null) || ($request->input('status') == 9 && $media->mode_of_order == null))
+        {
+            $media->mode_of_order = $request->input('mode_of_order');
+            $media->mode_of_confirmation = $request->input('mode_of_confirmation');
+            $media->po_number = $request->input('po_number');
+            $media->po_date = $request->input('po_date');
+        }
+        if(($media->stage == 4 || $media->stage == 9) && $request->input('mode_of_order') == 'On Advance')
+        {
+            $finalPrice = FinalPrice::where('media_id', '=',$request->input('media_id'))->first();
+            if($finalPrice !=null && $finalPrice !='')
+            {
+                $percentage = round(($finalPrice->total_amount * $finalPrice->advance_percent)/100);
+                        if($finalPrice->paid_amount < $percentage)
+                        {
+                            return response()->json('Full Advance amount not received.', 400);
+                        }
+            }
+        }
+        if($inputStatus == 7 || $inputStatus == 10 || $inputStatus == 14 || $inputStatus == 15)
+        {
+          $media->no_recovery_reason = $request->input('reason');
+          $media->wiping_request = '1';
+          $media->wiping_date = $this->_getDueDate(date('Y-m-d'),1);
+        }
+        $media->save();
+        $content = "Media Status has been Changed From ".$this->_getStageName($oldBoj->stage)." to ".$this->_getStageName($media->stage);
+        $this->_insertMediaHistory($media,"edit",$content,'STATUS-UPDATE',$media->stage);
+        $media->remarks = $request->input('reason');
+        Helper::sendZohoCrmData($media,'STATUS-CHANGE');
+        $sendMail = $this->_sendEmailStatusChange($media);
+          return json_encode($media);
+    }
+
     public function medialist(Request $request)
     {
         $term = $request->input('term');
@@ -64,19 +133,19 @@ class MediaController extends Controller
         $searchfieldName = $request->input('searchfieldName');
 
         $branchId = implode(',',$this->_getBranchId());
-        $select = 'media.*,transfer_media.media_id as transfer_media_id,transfer_media.new_branch_id as new_branch_id, branch.branch_name as branch_name,customer_detail.customer_name as customer_name,stage.stage_name as stage_name,transfer_media.client_media_send';
+        $select = 'media.*,transfer_media.media_id as transfer_media_id,transfer_media.new_branch_id as new_branch_id, branch.branch_name as branch_name,contact.customer_name as customer_name,contact.zoho_contact_id as zoho_contact_id,stage.stage_name as stage_name,transfer_media.client_media_send';
         $query = DB::table('media')->select(DB::raw($select));
         $query->leftJoin("transfer_media","media.id", "=", DB::raw("transfer_media.media_id and media.transfer_id=transfer_media.id"));
         $query->leftJoin('branch', 'branch.id', '=', 'media.branch_id');
         $query->leftJoin('stage', 'stage.id', '=', 'media.stage');
-        $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
+        $query->leftJoin('contact','contact.zoho_contact_id', '=','media.customer_id');
         if(auth()->user()->role_id !=1 && ($searchType =='' || $searchType == null))
         $query->whereRaw("(media.branch_id in ($branchId) or transfer_media.new_branch_id in ($branchId) or transfer_media.old_branch_id in ($branchId))");
       
         if($term !=null && $term !='' && $searchfieldName !=null && $searchfieldName !='' )
         {
             if($searchfieldName == "customer_name")
-                $query->where(DB::raw("customer_detail.customer_name"),'like','%'.$term.'%');
+                $query->where(DB::raw("contact.customer_name"),'like','%'.$term.'%');
             else if($searchfieldName == "branch_id" && ($searchType =='' || $searchType == null))
                $query->whereRaw("(media.branch_id in ($term) or transfer_media.new_branch_id in ($term))");
             else if($searchfieldName == "branch_id" && $searchType !='' && $searchType != null)
@@ -190,20 +259,25 @@ class MediaController extends Controller
         }
        else if($media->transfer_id != null && $media->team_id !=10)
         {
-            $transfer = MediaTransfer::find($media->transfer_id);
-            $userAssign = UserAssign::where('media_id',$media->id)->where('branch_id',$transfer->new_branch_id)->first();
-            if($userAssign == null)
+            //$transfer = MediaTransfer::find($media->transfer_id);
+            $transfer = MediaTransfer::where('media_id',$media->id)->where('assets_type','Original Media')->where('old_branch_id',$media->branch_id)->first();
+            if($transfer != null)
             {
-                $user = new UserAssign();
-                $user->media_id = $media->id;
-                $user->branch_id = $transfer->new_branch_id;
-                $user->user_id = $request->input('user_id');
-                $user->save();
-            }
+                    $userAssign = UserAssign::where('media_id',$media->id)->where('branch_id',$transfer->new_branch_id)->first();
+                    if($userAssign == null)
+                    {
+                        $user = new UserAssign();
+                        $user->media_id = $media->id;
+                        $user->branch_id = $transfer->new_branch_id;
+                        $user->user_id = $request->input('user_id');
+                        $user->save();
+                    }
+             }
         }
         $media->save();
         $remarks = "<b>Department Name : </b>".$this->_getTeamName($media->team_id)."<br>"."<b>User Name : </b>".$this->_getUserName($media->user_id)."<br>"."<b>Reason : </b>".$request->input('remarks');
         $this->_insertMediaHistory($media,"edit",$remarks,'ASSIGN-CHANGE',$media->stage);
+        $sendMail = $this->_sendMailAssignChange($media);
     }
 
     public function getTransferHistory($mediaId)
@@ -228,27 +302,61 @@ class MediaController extends Controller
         return $history;
     }
 
-    public function getMedia($id)
+    public function getRecoveryCharges($id)
     {
-        $select = 'media.*,branch.branch_name as branch_name,customer_detail.customer_name as customer_name,transfer_media.transfer_code,transfer_media.new_branch_id,transfer_media.client_media_send,
-                  recovery.recoverable_data as rec_recoverable_data,recovery.clone_branch as rec_clone_branch,stage.stage_name as stageName';
+
+        $select = 'media.*,branch.branch_name as branch_name,company.sez_unit_company,contact.sez_unit_contact,contact.use_billing_address,contact.zoho_contact_id as zoho_contact_id,contact.customer_name as customer_name,contact.id as contact_id,stage.stage_name as stageName';
         $query = DB::table('media')->select(DB::raw($select));
         $query->where('media.id', '=',$id);
         $query->leftJoin('branch', 'branch.id', '=', 'media.branch_id');
-	    $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
-        $query->leftJoin("transfer_media","transfer_media.id", "=", 'media.transfer_id');
-        $query->leftJoin('recovery','recovery.media_id', '=','media.id');
+	    $query->leftJoin('contact','contact.zoho_contact_id', '=','media.customer_id');
+	    $query->leftJoin('company','company.zoho_company_id', '=','contact.company_id');
         $query->leftJoin('stage','stage.id', '=','media.stage');
         $media =  $query->get();   
         if(count($media) > 0)
         {
+            $media[0]->payLink = $this->idDecodeAndEncode('encrypt',$id);
+            $media[0]->price = DB::table('media_price')->select(DB::raw('media_price.*,job_service_plan.plan_type as plan_type'))->leftJoin('job_service_plan','job_service_plan.plan_id', '=','media_price.plan_id')->where('media_price.media_id', '=',$id)->get();
+            $media[0]->FinalPrice = DB::table('final_price')->select(DB::raw('final_price.*,job_service_plan.plan_type as plan_type'))->leftJoin('job_service_plan','job_service_plan.plan_id', '=','final_price.plan_id')->where('final_price.media_id', '=',$id)->first();
+            $media[0]->Quotation = DB::table('quotation')->select(DB::raw('quotation.*,job_service_plan.plan_type as plan_type'))->leftJoin('job_service_plan','job_service_plan.plan_id', '=','quotation.plan_id')->where('quotation.media_id', '=',$id)->get();
+            $media[0]->AllReceipt = ReceiptMaster::where('media_id',$id)->get();
+            $media[0]->AllPayment = DB::table('service_payments')->select(DB::raw('service_payments.total_amount,service_payments.payment_amount,service_payments.payment_txnid,service_request.media_id,service_request.plan_type,service_payments.payment_timestamp,service_request.order_no,service_payments.payment_channel,service_payments.payment_mode,service_payments.existing_payment,service_payments.payment_amount,service_request.id as reqId,service_invoice.invoice_no,service_invoice.id as invoice_id,service_invoice.irn_status'))->leftJoin('service_request','service_request.id', '=','service_payments.request_id')->leftJoin('service_invoice','service_invoice.payment_id','=','service_payments.id')->where('service_payments.payment_status', '=','success')->where('service_request.media_id','=',$id)->get();
+            return response()->json($media[0]);
+        }  
+        else
+        {
+            return response()->json(null);
+        }  
+    }
+
+    public function getMedia($id)
+    {
+        $select = 'media.*,branch.branch_name as branch_name,contact.zoho_contact_id as zoho_contact_id,contact.customer_name as customer_name,contact.id as contact_id,transfer_media.transfer_code,transfer_media.new_branch_id,transfer_media.client_media_send,
+                  recovery.recoverable_data as rec_recoverable_data,recovery.clone_branch as rec_clone_branch,stage.stage_name as stageName, final_price.paid_amount,final_price.balance_amount';
+        $query = DB::table('media')->select(DB::raw($select));
+        $query->where('media.id', '=',$id);
+        $query->leftJoin('branch', 'branch.id', '=', 'media.branch_id');
+	    $query->leftJoin('contact','contact.zoho_contact_id', '=','media.customer_id');
+        $query->leftJoin("transfer_media","transfer_media.id", "=", 'media.transfer_id');
+        $query->leftJoin('recovery','recovery.media_id', '=','media.id');
+        $query->leftJoin('stage','stage.id', '=','media.stage');
+        $query->leftJoin('final_price', 'final_price.media_id', '=', 'media.id');
+        $media =  $query->get();   
+        if(count($media) > 0)
+        {
+            $media[0]->CurrentISE = $this->_getUserName($media[0]->ise_user_id);
+            $media[0]->CurrentTech = $this->_getUserName($media[0]->user_id);
             $media[0]->total_drive = json_decode($media[0]->total_drive);
             $media[0]->media_clone_detail = json_decode($media[0]->media_clone_detail);
             $media[0]->media_sapre_detail = json_decode($media[0]->media_sapre_detail);
             $media[0]->fileUpload = FileUpload::where('media_id',$media[0]->id)->get();
             $media[0]->Directory_Listing = MediaDirectory::where('media_id',$media[0]->id)->first();
             $media[0]->mediaout = null;
-            $media[0]->wiping = DB::table('media_wiping')->select(DB::raw('media_wiping.*,users.name as username'))->leftJoin('users','users.id', '=','media_wiping.user_id')->where('media_wiping.media_id', '=',$id)->get();;
+            $media[0]->Observation = Observation::where('media_id',$media[0]->id)->first();
+            $media[0]->Recovery = Recovery::where('media_id',$media[0]->id)->first();
+            $media[0]->MediaClientOut = MediaClientOut::where('media_id',$media[0]->id)->first();
+            $media[0]->wiping = DB::table('media_wiping')->select(DB::raw('media_wiping.*,users.name as username'))->leftJoin('users','users.id', '=','media_wiping.requested_to')->where('media_wiping.media_id', '=',$id)->get();
+            //$media[0]->price = DB::table('media_price')->select(DB::raw('media_price.*,job_service_plan.plan_type as plan_type'))->leftJoin('job_service_plan','job_service_plan.plan_id', '=','media_price.plan_id')->where('media_price.media_id', '=',$id)->get();
             $mediaout = DB::table('media_out')->select(DB::raw('media_out.*'))->where('media_out.media_id', '=',$id)->get();
             if(count($mediaout) > 0)
             {
@@ -357,7 +465,7 @@ class MediaController extends Controller
     {
         $id = $request->input('id');
         $media = Media::find($id);
-        $oldMedia = $media;
+        $oldMedia = $media->replicate();
         $media->branch_type = $request->input('branch_type');
         $media->media_type = $request->input('media_type');
         $media->drive_count = $request->input('drive_count');
@@ -380,12 +488,44 @@ class MediaController extends Controller
         $media->last_updated  = Carbon::now()->toDateTimeString();
         $media->save();
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'PRE-ANALYSIS',$media->stage);
-        if($media->stage == 3)
-        {
-			Helper::sendZohoCrmData($media,'PRE-ANALYSIS');
-			Helper::sendZohoCrmNotes($media,'PRE-ANALYSIS',0,$request->input('remarks'));
+        $this->StatusUpdateHistory($oldMedia,$media);
+        $media->remarks = $request->input('remarks');
+        $priceCrmWrap = array();
+        if($media->stage == 3 && $media->tampered_status == 'Tampered')
+        {           
+            $prices = $this->setRecoveryPrice($media); 
+            $deletedMediaPrice = MediaPrice::where('media_id', $media->id)->delete();
+            foreach($prices as $price)
+            {
+                $priceCrm = [];
+                $MediaPrice = new MediaPrice();
+                $MediaPrice->plan_id = $price['plan_id'];
+                $MediaPrice->plan_amount = $price['amount'];
+                $MediaPrice->media_id = $media->id;
+                $MediaPrice->advance_percent = $price['advance_percent'];
+                $MediaPrice->total_fee = $price['amount'];
+                $MediaPrice->is_visible = ($price->plan_type == 'Standard')?'1':'0';
+                $MediaPrice->estimated_days = "10";
+                $MediaPrice->support = "Support via email and phone";
+                $MediaPrice->speed = "High speed lab computers used for data recovery";
+                $MediaPrice->save();
+                if($MediaPrice->is_visible == "1")
+                {
+                $priceCrm['Plan_Type'] = $price['plan_type'];
+                $priceCrm['Estimated_Days'] =  $MediaPrice->estimated_days;
+                $priceCrm['Speed'] =           $MediaPrice->speed;
+                $priceCrm['Support'] =         $MediaPrice->support;
+                $priceCrm['Advance_Percentage'] = $price['advance_percent'];
+                $priceCrm['Advance_Amount'] = round(($price['amount']*$price['advance_percent'])/100);
+                $priceCrm['Total_Service_Fee'] = $price['amount'];
+                $priceCrm['Show_Plan'] =($price->plan_type == 'Standard')?true:false;
+                $priceCrmWrap[]=$priceCrm;
+                }
+            }                
         }
-        //$this->_sendMailMediaStatusChanged($oldMedia,$media);
+        $media->price = $priceCrmWrap;
+        Helper::sendZohoCrmData($media,'PRE-ANALYSIS');
+        $sendMail = $this->_sendEmailtoISEUser($media);
         return response()->json($media);
     }
 
@@ -418,6 +558,7 @@ class MediaController extends Controller
     public function sendMediatransfer(Request $request)
     {
         $media = Media::find($request->input('media_id'));
+        $oldMedia = $media->replicate();
         $oldbranchId = $media->branch_id;
         if($request->input('assets_type') == 'Original Media' && $media->transfer_id !=null)
         $mediaOldid = MediaTransfer::where('id', $media->transfer_id)->get();
@@ -456,9 +597,7 @@ class MediaController extends Controller
                                 $media->extension_approve = 1;
                                 $remarks = "Extension requested for ".$request->input('extension_day')." days. <br>".$request->input('reason');
                                 $this->_insertMediaHistory($media,"edit",$remarks,'EXTENSION-DAY',$media->stage,'Pending');
-                                $media->extReason = $request->input('reason');
-                                Helper::sendZohoCrmData($media,'EXTENSION-DAY');
-                                unset($media['extReason']);
+                                $sendMail = $this->_sendEmailExtension($media,'Pending');
                             }
 
                     }
@@ -496,8 +635,9 @@ class MediaController extends Controller
                 $media->stage = 20;
                 else if($media->stage == 16)
                 $media->stage = 21;
-                Helper::sendZohoCrmData($media,'MEDIA_OUT');
-                Helper::sendZohoCrmNotes($media,'INSPECTION',0,$request->input('reason'));
+                $media->remarks = null;
+                Helper::sendZohoCrmData($media,'STATUS-CHANGE');
+                unset($media['remarks']);
             }
             else if($request->input('assets_type') == 'Data' || $request->input('assets_type') == 'Clone')
             {
@@ -505,13 +645,17 @@ class MediaController extends Controller
               $media->DL = MediaDirectory::where('media_id',$media->id)->first();
               if($media->DL != null && $media->DL !='')
               $media->DL->copyin_details = json_decode($media->DL->copyin_details,TRUE);
-              Helper::sendZohoCrmData($media,'DATAOUT');
-              Helper::sendZohoCrmNotes($media,'INSPECTION',0,$request->input('reason'));
+              $media->remarks = null;
+              Helper::sendZohoCrmData($media,'STATUS-CHANGE');
               unset($media['DL']);
+              unset($media['remarks']);
+              $media->wiping_request = '1';
+              $media->wiping_date = $this->_getDueDate(date('Y-m-d'),7);
             }
             $media->save();
             $remarks = $request->input('assets_type')." Transferred From ".$oldBranch->branch_name." to Client by ".$this->_getUserName(auth()->user()->id).".";
         }
+        $this->StatusUpdateHistory($oldMedia,$media);
         // $sendMail = $this->_sendMailTransferMedia($transfer,$media);
            $this->_insertMediaHistory($media,"edit",$remarks,'TRANSFER-MEDIA',$media->stage);
         return response()->json($media);
@@ -521,7 +665,7 @@ class MediaController extends Controller
     {
         $id = $request->input('id');
         $media = Media::find($id);
-        $oldMedia = $media;		
+        $oldMedia = $media->replicate();	
         $media->case_type = $request->input('case_type');
         $media->media_clone = $request->input('media_clone');
         $media->encryption_status = $request->input('encryption_status');
@@ -563,7 +707,6 @@ class MediaController extends Controller
         $media->no_recovery_reason = $request->input('no_recovery_reason');
         $media->no_recovery_reason_other = $request->input('no_recovery_reason_other');
         $media->encryption_name = $request->input('encryption_name');
-        $extReason = null;
         if($media->stage == 5 && $request->input('extension_required') == 'Yes' && $request->input('extension_day') != null && $media->extension_approve !=1)
         {
                     $media->extension_approve = 1;
@@ -578,16 +721,71 @@ class MediaController extends Controller
         $media->media_clone_detail = json_encode($request->input('media_clone_detail'));
         $media->media_sapre_detail = json_encode($request->input('media_sapre_detail'));
         $media->save();
+        $priceCrmWrap = array();
+        $countMediaPrice = MediaPrice::where('media_id', $media->id)->get();
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'INSPECTION',$media->stage);
-        if($media->recovery_possibility == 'Yes' && $media->stage == 6)
-            $media->stage = 8;
+        if($media->recovery_possibility == 'Yes' && $media->stage == 6 && count($countMediaPrice) == 0)
+        {
+          //  $media->stage = 8;
+            $deletedMediaPrice = MediaPrice::where('media_id', $media->id)->delete();
+            $prices = $this->setRecoveryPrice($media);            
+            foreach($prices as $price)
+            {
+                $priceCrm = [];
+                $MediaPrice = new MediaPrice();
+                $MediaPrice->plan_id = $price['plan_id'];
+                $MediaPrice->plan_amount = $price['amount'];
+                $MediaPrice->media_id = $media->id;
+                $MediaPrice->advance_percent = $price['advance_percent'];
+                $MediaPrice->total_fee = $price['amount'];
+                $MediaPrice->is_visible = ($price->plan_type == 'Standard')?'1':'0';
+                if($MediaPrice->plan_id == '1')
+                {
+                    $MediaPrice->support = "Support via email and phone";
+                    $MediaPrice->speed = "High speed lab computers used for data recovery";
+                }
+                elseif($MediaPrice->plan_id == '2')
+                {
+                    $MediaPrice->support = "Support via email only";
+                    $MediaPrice->speed = "Regular speed lab computers used for data recovery";
+                }
+                elseif($MediaPrice->plan_id == '3')
+                {
+                    $MediaPrice->support = "Support via email and phone";
+                    $MediaPrice->speed = "Very high speed lab computers used for data recovery";
+                }
+                if($media->required_days != null && $media->required_days !='')
+                {
+                    $MediaPrice->estimated_days = $this->calculateEstimatedDays($MediaPrice->plan_id,$media->required_days);
+                }
+                $MediaPrice->save();
+                if($MediaPrice->is_visible == '1')
+                {
+                $priceCrm['Plan_Type'] = $price['plan_type'];
+                $priceCrm['Advance_Percentage'] = $price['advance_percent'];
+                $priceCrm['Advance_Amount'] = round(($price['amount']*$price['advance_percent'])/100);
+                $priceCrm['Total_Service_Fee'] = $price['amount'];
+                $priceCrm['Show_Plan'] =($price->plan_type == 'Standard')?true:false;
+                $priceCrm['Estimated_Days'] =  strval($MediaPrice->estimated_days);
+                $priceCrm['Speed'] =           $MediaPrice->speed;
+                $priceCrm['Support'] =         $MediaPrice->support;
+                $priceCrmWrap[]=$priceCrm;
+                }
+            }
+        }
        elseif($media->recovery_possibility == 'No' && $media->stage == 6)
+       {
             $media->stage = 7;
+            $media->wiping_request = '1';
+            $media->wiping_date = $this->_getDueDate(date('Y-m-d'),1);
+       }
         $media->save();
-            $media->extReason = $extReason;
+        $this->StatusUpdateHistory($oldMedia,$media);
+            $media->remarks = $request->input('remarks');
+            $media->price = $priceCrmWrap;
+            $media->countMediaPrice = $countMediaPrice;
             Helper::sendZohoCrmData($media,'INSPECTION');
-            Helper::sendZohoCrmNotes($media,'INSPECTION',0,$request->input('remarks'));
-        //$this->_sendMailMediaStatusChanged($oldMedia,$media);
+            $sendMail = $this->_sendEmailtoISEUser($media);
         return response()->json($media);
     }
 
@@ -607,7 +805,7 @@ class MediaController extends Controller
         $media = Media::find($transfer->media_id);
         if($transfer->new_branch_id != "23")
         {           
-            $transfer->transfer_code =  ($media->job_id ==null)?$media->zoho_id:$media->job_id;
+            $transfer->transfer_code =  ($media->job_id ==null)?$media->deal_id:$media->job_id;
         }
         else
         {
@@ -630,6 +828,62 @@ class MediaController extends Controller
 
     }
 
+    public function SendAttahment($mediaId)
+    {
+        $files = FileUpload::where('media_id',$mediaId)->where('type','dl')->get();
+        if(count($files) > 0)
+        {
+            $media = Media::find($mediaId);
+            $api_url = env('MIMS_API_URL').'/crm/v2/Deals/'.$media->deal_id.'/Attachments';
+            foreach($files as $file)
+            {
+                $zoho_tokeninfo = Helper::getZohoCrmAuthToken();
+                if($zoho_tokeninfo == false){
+                    $zoho_tokeninfo =Helper::getZohoCrmAuthToken();
+                }
+                if($zoho_tokeninfo){
+                    $path =  parse_url($file->store_path)['path'];
+                    $finalPath = $_SERVER['DOCUMENT_ROOT'].$path;
+                    $fileName = $file->name;
+                    $fileType = mime_content_type($finalPath);
+                    $curl = curl_init();
+                    curl_setopt_array($curl, array(
+                        CURLOPT_URL => $api_url,
+                        CURLOPT_RETURNTRANSFER => true,
+                        CURLOPT_ENCODING => '',
+                        CURLOPT_MAXREDIRS => 10,
+                        CURLOPT_TIMEOUT => 0,
+                        CURLOPT_FOLLOWLOCATION => true,
+                        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                        CURLOPT_CUSTOMREQUEST => 'POST',
+                        CURLOPT_SAFE_UPLOAD =>true,
+                        CURLOPT_SSL_VERIFYPEER=>false,
+                        CURLOPT_POSTFIELDS => array('file'=> new \CurlFile($finalPath,$fileType,$fileName)),
+                        CURLOPT_HTTPHEADER => array(
+                        'Authorization: Zoho-oauthtoken '.$zoho_tokeninfo,
+                        'Content-Type: multipart/form-data',
+                        ),
+                        ));
+                            $zoho_result = curl_exec($curl);
+                            $error = curl_error($curl);
+                            curl_close($curl);
+                            $log_data = array(
+                                "log_name" => "Attachment",
+                                "log_request_url" => $api_url,
+                                "log_request" => $finalPath,
+                                "log_response" => !empty($error) ? $error : $zoho_result
+                            );
+                            Helper::logApiCall($log_data);
+                            if (!$error) {
+                                $json_decode =  json_decode($zoho_result, true);
+                                $file->zoho_attachment_id = $json_decode['data'][0]['details']['id'];
+                                $file->save();
+                            }
+                }
+            }
+        }
+    }
+
     public function upload(Request $request)
     {
         if($request->hasfile('files'))
@@ -641,12 +895,12 @@ class MediaController extends Controller
             $name = $file->getClientOriginalName();
             $save = new FileUpload();
             $save->name = $name;
+            $save->type = $request->input('type');
             $save->media_id = $media_id;
             $save->store_path= url('/')."/storage/app/".$path;
             $save->save();
             $media = Media::find($media_id);
             $media->url = $save->store_path;
-           // Helper::sendAttachmentZoho($media,'Attachment');
              return response()->json([
                         "success" => true,
                         "message" => "File successfully uploaded",
@@ -674,6 +928,33 @@ class MediaController extends Controller
         $destinationPath = storage_path('app\public\Upload').'/'.$file->media_id.'/'.$fileName;
         unlink($destinationPath);
         DB::table('file_uploads')->where('id', $id)->delete();
+        $zoho_tokeninfo = Helper::getZohoCrmAuthToken();
+        if($zoho_tokeninfo == false){
+            $zoho_tokeninfo =Helper::getZohoCrmAuthToken();
+        }
+        if($file->zoho_attachment_id != null)
+        {
+            $media = Media::find($file->media_id);
+        $api_url = env('MIMS_API_URL').'/crm/v2/Deals/'.$media->deal_id.'/Attachments/'.$file->zoho_attachment_id;
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $api_url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'DELETE',
+            CURLOPT_SAFE_UPLOAD =>true,
+            CURLOPT_SSL_VERIFYPEER=>false,
+            CURLOPT_HTTPHEADER => array(
+            'Authorization: Zoho-oauthtoken '.$zoho_tokeninfo),
+            ));
+            $zoho_result = curl_exec($curl);
+            $error = curl_error($curl);
+            curl_close($curl);
+        }
         return response()->json(["data"=>FileUpload::where('media_id',$file->media_id)->get()]);
     }
 
@@ -706,18 +987,47 @@ class MediaController extends Controller
     public function mediaDataout(Request $request)
     {
         $dl = MediaDirectory::find($request->input('id'));
-        $dl->copyin_details = $request->input('copyin_details');
-        $dl->frontdisk_out_req ='1';
-        $dl->save();
-        $media = Media::find($request->input('media_id'));
-        if($dl->copyin == "Online Transfer")
+        $media = Media::find($dl->media_id);
+        $remarks = $request->input('remarks');
+        if($request->input('reqType') == 'Tech')
         {
-            $media->stage = 16;
-            $media->save();
-            $media->DL = $dl;
-            Helper::sendZohoCrmData($media,'DATAOUT');
-            Helper::sendZohoCrmNotes($media,'INSPECTION',0,$request->input('remarks'));
+                $dl->copyin = $request->input('copyin');
+                $dl->data_copy_status = $request->input('data_copy_status');
+                $dl->copyin_details = $request->input('copyin_details');
+                $dl->save();
+                $media->DL = $dl;
+                $media->remarks = $remarks;
+                $media->actionType = "DATA-OUT-TECH";
+                $this->_insertMediaHistory($media,"edit",$remarks,'DATA-OUT',$media->stage);
+                Helper::sendZohoCrmData($media,'DATA-OUT-TECH');
+                $sendMail = $this->_sendEmailtoISEUser($media);
         }
-        $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'DATA-OUT',$media->stage);
+        elseif($request->input('reqType') == 'ISE')
+        {
+            $dl->data_out_mode = $request->input('data_out_mode');
+            $dl->ref_no = $request->input('ref_no');
+            $dl->ref_name = $request->input('ref_name');
+            $dl->ref_mobile = $request->input('ref_mobile');
+            $dl->id_proof = $request->input('id_proof');
+            $dl->courier_company_name = $request->input('courier_company_name');
+            $dl->address_same_as_mediain = $request->input('address_same_as_mediain');
+            $dl->courier_address = $request->input('courier_address');
+            $dl->save();
+            if($dl->data_out_mode == 'Online Transfer')
+            {
+                $media->stage = 16;
+                $media->wiping_request = '1';
+                $media->wiping_date = $this->_getDueDate(date('Y-m-d'),7);
+                $media->save();
+            }
+            $dl->save();
+            $media->DL = $dl;
+            $media->remarks = $remarks;
+            $media->actionType = "DATA-OUT-ISE";
+            $this->_insertMediaHistory($media,"edit",$remarks,'DATA-OUT',$media->stage);
+            Helper::sendZohoCrmData($media,'DATA-OUT-ISE');
+            $sendMail = $this->_sendEmailtoTechnician($media);            
+        }
+        return response()->json($media);
     }
 }

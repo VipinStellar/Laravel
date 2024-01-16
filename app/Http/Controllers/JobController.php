@@ -26,39 +26,68 @@ class JobController extends Controller
    // submit_timestamp <= DATE_FORMAT(DATE_ADD(CURRENT_DATE, INTERVAL 1 DAY),'%Y-%m-%d')
     public function wipingDueList(Request $request)
     {
-          $branchId = implode(',',$this->_getBranchId());
-          $select = 'transfer_media.*,stage.stage_name as stage_name,media.media_type,media.user_id,media.zoho_id,media.job_id';
-          $query = DB::table('transfer_media')->select(DB::raw($select));
-          $query->join('media','media.id', '=','transfer_media.media_id');
-          $query->leftJoin('stage', 'stage.id', '=', 'media.stage');
-          $query->where('transfer_media.assets_type','=','Clone');
-          $query->where('media.wiping_request','=',null);
-          $query->whereRaw("transfer_media.new_branch_id in ($branchId)");
-          $query->whereRaw("DATE_FORMAT(DATE_ADD(transfer_media.media_in_date, INTERVAL 7 DAY),'%Y-%m-%d')  <=DATE_FORMAT(CURRENT_DATE,'%Y-%m-%d')");
-          $query->orderBy($request->input('orderBy'), $request->input('order'));
-          $pageSize = $request->input('pageSize');
-          $data = $query->paginate($pageSize,['*'],'page_no');
-          $results = $data->items();
-          $count = $data->total();
-         $data = [
-             "draw" => $request->input('draw'),
-             "recordsTotal" => $count,
-             "data" => $results
-             ];
-             return json_encode($data);
+        $branchId = implode(',',$this->_getBranchId());
+        $roleId = auth()->user()->role_id;
+        $select = 'media_wiping.*,media.media_type,media.user_id,media.deal_id,media.deal_name,media.job_id,media.branch_id as media_branch_id,users.name as requested_to_name';
+        $query = DB::table('media_wiping')->select(DB::raw($select));
+        $query->leftJoin('media','media.id', '=','media_wiping.media_id');
+        $query->leftJoin('users','users.id', '=','media_wiping.requested_to');
+        if($roleId == 10)
+        {
+          $query->whereRaw("media_wiping.branch_id in ($branchId)");
+          $query->whereRaw('media_wiping.request_type = "CRM"');
+          $query->whereRaw('media_wiping.status = "0"');
+        }
+        else
+        {
+          if($roleId != 10 && $roleId !=1)
+          {
+            $query->whereRaw("(media_wiping.branch_id in ($branchId) or media.branch_id in ($branchId))");
+            //$query->whereRaw('media_wiping.request_type = "BRANCH"');
+            $query->whereRaw('media_wiping.status = "0"');
+          }
+        }
+        $query->orderBy($request->input('orderBy'), $request->input('order'));
+        $pageSize = $request->input('pageSize');
+        $data = $query->paginate($pageSize,['*'],'page_no');
+        $results = $data->items();
+        $count = $data->total();
+       $data = [
+           "draw" => $request->input('draw'),
+           "recordsTotal" => $count,
+           "data" => $results
+           ];
+           return json_encode($data);
     }
 
     public function wipingList(Request $request)
     {
-       $branchId = implode(',',$this->_getBranchId());
-       $select = 'media_wiping.*,customer_detail.customer_name as customer_name,stage.stage_name as stage_name,media.media_type,media.customer_id,media.stage,media.user_id,media.zoho_id,media.job_id,users.name,media.user_id as userid';
-       $query = DB::table('media_wiping')->select(DB::raw($select));
-       $query->leftJoin('users', 'users.id', '=', 'media_wiping.user_id');
-       $query->leftJoin('media','media.id', '=','media_wiping.media_id');
-       $query->leftJoin('stage', 'stage.id', '=', 'media.stage');
-       $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
-       $query->whereRaw("media_wiping.branch_id in ($branchId)");
-       $query->where('media_wiping.status','=','0');
+      $branchId = implode(',',$this->_getBranchId());
+      $roleId = auth()->user()->role_id;
+      if($roleId == 10 || $roleId ==1)
+      {
+        $select = 'media.*,stage.stage_name as stage_name,final_price.balance_amount';
+        $query = DB::table('media')->select(DB::raw($select));
+        $query->leftJoin('stage', 'stage.id', '=', 'media.stage');
+        $query->leftJoin('final_price', 'final_price.media_id', '=', 'media.id');
+        if($roleId ==10)
+        $query->whereRaw("media.branch_id in ($branchId)");
+        $query->where('media.wiping_request','=','1');
+        $query->whereRaw("media.wiping_date  <=DATE_FORMAT(CURRENT_DATE,'%Y-%m-%d')");
+      }
+      else
+      {
+        $select = 'transfer_media.*,stage.stage_name as stage_name,media.media_type,media.user_id,media.deal_id,media.job_id';
+        $query = DB::table('transfer_media')->select(DB::raw($select));
+        $query->leftJoin('media','media.id', '=','transfer_media.media_id');
+        $query->leftJoin('stage', 'stage.id', '=', 'media.stage');
+       // $query->whereRaw("(transfer_media.new_branch_id in ($branchId) or transfer_media.old_branch_id in ($branchId))");
+        $query->whereRaw("transfer_media.new_branch_id in ($branchId)");
+        $query->whereRaw("DATE_FORMAT(DATE_ADD(transfer_media.media_in_date, INTERVAL 7 DAY),'%Y-%m-%d')  <=DATE_FORMAT(CURRENT_DATE,'%Y-%m-%d')");
+        $query->whereRaw('(transfer_media.assets_type="Clone" or transfer_media.assets_type="Data")');
+        $query->where('transfer_media.is_wiping','=','0');
+        $query->where('transfer_media.client_media_send','=','0');
+      }
        $query->orderBy($request->input('orderBy'), $request->input('order'));
        $pageSize = $request->input('pageSize');
        $data = $query->paginate($pageSize,['*'],'page_no');
@@ -88,34 +117,59 @@ class JobController extends Controller
         }
         $wipe->save();
         $media = Media::find($wipe->media_id);
+        $media->Wiping = $wipe;
+        $media->remarks = $request->input('remarks');
         $this->_insertMediaHistory($media,"edit",$request->input('remarks'),'WIPING',$media->stage);
-        if($wipe->request_type == "CRM")
+        if($wipe->request_type == 'CRM')
         {
-          $media->Wipingstatus = $wipe->wiping_status;
-          $media->WipingDate = $wipe->approve_wiping_date;
-          Helper::sendZohoCrmData($media,'WIPING');
-          Helper::sendZohoCrmNotes($media,'INSPECTION',0,$request->input('remarks'));
+          Helper::sendZohoCrmData($media,'WIPING-REQUEST-UPDATE');
         }
+        $this->_sendEmailtoMediaWipingDone($media);  
     }
 
-    public function requestWiping($mediaId)
+    public function requestWiping($mediaId,$type)
     {
-        $media  = Media::find($mediaId);
-        if($media->transfer_id != null)
-        {
-             $user     =  UserAssign::where('media_id',$media->id)->orderBy('id','desc')->first();
-             $wipe     =  new MediaWiping();
-             $wipe->user_id = $user->user_id;
-             $wipe->branch_id = $this->getUserBranchid($user->user_id);
-             $wipe->media_id = $media->id;
-             $wipe->request_wiping_date = Carbon::now()->toDateTimeString();
-             $wipe->request_type = "BRANCH";
-             $wipe->expected_wiping_date  = $this->_getDueDate(date('Y-m-d'),7);
-             $wipe->save();
-             $media->wiping_request = "1";
-             $media->save();
-             $this->_insertMediaHistory($media,"edit","Wiping request",'WIPING',$media->stage);
-        }
+          if($type == 'ISE' && $mediaId !=null)
+          {
+            $media  = Media::find($mediaId);
+            $user     =  UserAssign::where('media_id',$media->id)->orderBy('id','asc')->first();
+            $wipe     =  new MediaWiping();
+            $wipe->requested_to = $user->user_id;
+            $wipe->requested_by = auth()->user()->id;
+            $wipe->branch_id = $media->branch_id;
+            $wipe->media_id = $media->id;
+            $wipe->request_wiping_date = Carbon::now()->toDateTimeString();
+            $wipe->request_type = "CRM";
+            $wipe->expected_wiping_date  = $media->wiping_date;
+            $wipe->save();
+            $media->wiping_request = "2";
+            $media->save();
+            $media->Wiping = $wipe;
+            $this->_insertMediaHistory($media,"edit","Wiping request",'WIPING',$media->stage);
+            Helper::sendZohoCrmData($media,'WIPING-REQUEST');
+            $this->_sendEmailtoMediaWipingRequest($media);  
+          }
+          elseif($type == 'BRANCH' && $mediaId !=null)
+          {
+              $transfer = MediaTransfer::find($mediaId);
+              $media  = Media::find($transfer->media_id);
+              $userAssign = UserAssign::where('media_id',$media->id)->where('branch_id',$transfer->old_branch_id)->first();
+              $wipe     =  new MediaWiping();
+              $wipe->requested_to = $userAssign->user_id;
+              $wipe->requested_by = auth()->user()->id;
+              $wipe->branch_id = $transfer->old_branch_id;
+              $wipe->media_id = $media->id;
+              $wipe->request_wiping_date = Carbon::now()->toDateTimeString();
+              $wipe->request_type = "BRANCH";
+              $wipe->expected_wiping_date  = $this->_getDueDate(date('Y-m-d',strtotime($transfer->media_in_date)),7);
+              $wipe->save();             
+              $transfer->is_wiping = '1';
+              $transfer->save();
+              $media->Wiping = $wipe;
+              $this->_insertMediaHistory($media,"edit","Wiping request",'WIPING',$media->stage);
+              $this->_sendEmailtoMediaWipingRequest($media); 
+
+          }
     }
 
     public function jobconfirm(Request $request)
@@ -123,12 +177,12 @@ class JobController extends Controller
       $statusInput = $request->input('statusId');
       $branchInput = $request->input('branchId');
       $branchId = implode(',',$this->_getBranchId());
-      $select = 'media.*,transfer_media.media_id as transfer_media_id,transfer_media.new_branch_id as new_branch_id, branch.branch_name as branch_name,customer_detail.customer_name as customer_name,stage.stage_name as stage_name';
+      $select = 'media.*,transfer_media.media_id as transfer_media_id,transfer_media.new_branch_id as new_branch_id, branch.branch_name as branch_name,contact.customer_name as customer_name,stage.stage_name as stage_name';
       $query = DB::table('media')->select(DB::raw($select));
       $query->leftJoin("transfer_media","media.id", "=", DB::raw("transfer_media.media_id and media.transfer_id=transfer_media.id"));
       $query->leftJoin('branch', 'branch.id', '=', 'media.branch_id');
       $query->leftJoin('stage', 'stage.id', '=', 'media.stage');
-      $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
+      $query->leftJoin('contact','contact.zoho_contact_id', '=','media.customer_id');
       if(auth()->user()->role_id !=1)
       $query->whereRaw("(media.branch_id in ($branchId) or transfer_media.new_branch_id in ($branchId))");
       $query->whereRaw("media.stage > 4 and media.stage !=10");
@@ -158,13 +212,13 @@ class JobController extends Controller
         $branchId = implode(',',$this->_getBranchId());
         $select = 'transfer_media.id as transPrimaryId,transfer_media.media_id as transfer_media_id,transfer_media.media_in_status as media_in_status,transfer_media.media_in_date as media_in_date,transfer_media.assets_type,transfer_media.id as transferId,transfer_media.gatepass_status as getpasStatus,gatepass_id.gatepass_id as getpassId,
                    transfer_media.new_branch_id as new_branch_id,transfer_media.old_branch_id,transfer_media.transfer_code as transfer_code,transfer_media.client_media_send,
-                   branch.branch_name as branch_name,customer_detail.customer_name as customer_name,stage.stage_name as stage_name,media.*';
+                   branch.branch_name as branch_name,contact.customer_name as customer_name,stage.stage_name as stage_name,media.*';
         $query = DB::table('transfer_media')->select(DB::raw($select));
         $query->leftJoin("media",'transfer_media.media_id', "=","media.id");
         $query->leftJoin('branch', 'branch.id', '=', 'media.branch_id');
         $query->leftJoin('stage', 'stage.id', '=', 'media.stage');
         $query->leftJoin("gatepass_id","transfer_media.id", "=", "gatepass_id.transfer_id");
-        $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
+        $query->leftJoin('contact','contact.zoho_contact_id', '=','media.customer_id');
         if(auth()->user()->role_id !=1)
         $query->whereRaw("(transfer_media.new_branch_id in ($branchId) or transfer_media.old_branch_id in ($branchId))");
 
@@ -213,11 +267,15 @@ class JobController extends Controller
 
     public function updateMediaStatus(Request $request)
     {
-        $media = new MediaStatus();
-        $media->media_id = $request->input('media_id');
-        $media->status = $request->input('status');
-        $media->user_id = auth()->user()->id;
-        $media->save();
+        $mediastatus = new MediaStatus();
+        $mediastatus->media_id = $request->input('media_id');
+        $mediastatus->status = $request->input('status');
+        $mediastatus->user_id = auth()->user()->id;
+        $mediastatus->save();
+        $media = Media::find($mediastatus->media_id);
+        $media->DAILY = $mediastatus;
+        Helper::sendZohoCrmData($media,'DAILY-STATUS');
+        $sendMail = $this->_sendEmailtoISEUser($media);
         return response()->json($media);
     }
 
@@ -282,6 +340,7 @@ class JobController extends Controller
         $Obser->media_sapre_detail = json_encode($request->input('media_sapre_detail'));
         $Obser->save();
         $media = Media::find($Obser->media_id);
+        $oldMedia = $media->replicate();
         $media->no_recovery_reason = $request->input('no_recovery_reason');
         $media->no_recovery_reason_other = $request->input('no_recovery_reason_other');
         $media->recovery_possibility = $request->input('recovery_possibility');
@@ -291,30 +350,27 @@ class JobController extends Controller
         $media->notes = $request->input('notes');
         if($request->input('recovery_possibility') == 'No')
             $media->stage = 14;
+        if($media->stage ==14)
+        {
+          $media->wiping_request = '1';
+          $media->wiping_date = $this->_getDueDate(date('Y-m-d'),1);
+        }
         $media->save();
         $remarks = $request->input('remarks');
+        $media->remarks = $remarks;
         $this->_insertMediaHistory($media,"edit",$remarks,'OBSERVATION',$media->stage);
-        if($media->stage == 14)
-        {
-          Helper::sendZohoCrmData($media,'NOT-DONE');
-          Helper::sendZohoCrmNotes($media,'INSPECTION',0,$request->input('remarks'));
-        }
-        else if($media->stage != 14 && $media->recovery_possibility == "Yes")
-        {
-          $media->spare_required =$Obser->spare_required;
-          $media->media_sapre_detail =$Obser->media_sapre_detail;
-          Helper::sendZohoCrmData($media,'OBSERVATION');
-          Helper::sendZohoCrmNotes($media,'INSPECTION',0,$request->input('remarks'));
-        }
+        $this->StatusUpdateHistory($oldMedia,$media);
+        Helper::sendZohoCrmData($media,'OBSERVATION');
+        $sendMail = $this->_sendEmailtoISEUser($media);
         return response()->json($Obser);
     }
 
     public function getMediaJob($id)
     {
-            $select = 'media.*,customer_detail.customer_name as customer_name';
+            $select = 'media.*,contact.customer_name as customer_name';
             $query = DB::table('media')->select(DB::raw($select));
             $query->where('media.id', '=',$id);
-            $query->leftJoin('customer_detail','customer_detail.id', '=','media.customer_id');
+            $query->leftJoin('contact','contact.zoho_contact_id', '=','media.customer_id');
             $media =  $query->get(); 
             if(count($media) > 0)
             {
@@ -348,13 +404,13 @@ class JobController extends Controller
       $search_branchId = $request->input('branchId');
       $term = $request->input('term');
       $branchId = implode(',',$this->_getBranchId());
-      $select = 'transfer_media.*,media.zoho_id,media.media_type,media.case_type,media.stage as stage_id,media.job_id,customer_detail.customer_name,branch.branch_name as new_branch_name,stage.stage_name as stage_name,gatepass.id as gatepass_id,gatepass.gatepass_no,gatepass.created_on as createdon';
+      $select = 'transfer_media.*,media.deal_id,media.media_type,media.case_type,media.stage as stage_id,media.job_id,contact.customer_name,branch.branch_name as new_branch_name,stage.stage_name as stage_name,gatepass.id as gatepass_id,gatepass.gatepass_no,gatepass.created_on as createdon';
       $query = DB::table('transfer_media')->select(DB::raw($select));
       $query->leftJoin("media","transfer_media.media_id", "=", "media.id");
       $query->leftJoin("gatepass_id","transfer_media.id", "=", "gatepass_id.transfer_id");
       $query->leftJoin("gatepass","gatepass_id.gatepass_id", "=", "gatepass.id");
       $query->leftJoin("stage", "media.stage", "=", "stage.id");
-      $query->leftJoin("customer_detail","media.customer_id", "=","customer_detail.id");
+      $query->leftJoin("contact","media.customer_id", "=","contact.id");
       $query->leftJoin("branch","transfer_media.old_branch_id", "=", "branch.id");
       $query->where("transfer_media.gatepass_status", "=","1");
       if(auth()->user()->role_id !=1)
@@ -368,7 +424,7 @@ class JobController extends Controller
       }
       if($term != null && $term !='')
       {
-        $query->whereRaw("(media.zoho_id = '".$term."' or media.job_id = '".$term."')");
+        $query->whereRaw("(media.deal_id = '".$term."' or media.job_id = '".$term."')");
       }
       $query->orderBy($request->input('orderBy'), $request->input('order'));
       $pageSize = $request->input('pageSize');
@@ -443,14 +499,14 @@ class JobController extends Controller
               $media->ref_name_num = $gatepass->ref_name_num;
               $media->transfer_mode = $gatepass->transfer_mode;
               $media->mediaOutType = 1;
-              Helper::sendZohoCrmData($media,'GATEPASS_UPDATE');
+             // Helper::sendZohoCrmData($media,'GATEPASS_UPDATE');
         }
         if($gatepass->dispatch_branch_id == 0 && $otherAssets[$i]['only_media'] == true && $otherAssets[$i]['mediaType'] =="Original Media")
         {
               $media->ref_name_num = $gatepass->ref_name_num;
               $media->transfer_mode = $gatepass->transfer_mode;
               $media->mediaOutType = 2;
-              Helper::sendZohoCrmData($media,'GATEPASS_UPDATE');
+             // Helper::sendZohoCrmData($media,'GATEPASS_UPDATE');
         }
       }
       return response()->json('success');

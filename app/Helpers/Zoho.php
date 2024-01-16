@@ -3,17 +3,20 @@
 namespace App\Helpers;
 use DB;
 use Carbon\Carbon; 
-use App\Models\CustomerDetail;
+use App\Models\Contact;
 use App\Models\User;
 use App\Models\Stage;
+use App\Models\Quotation;
 use DateTime;
+use App\Models\ServicePayment;
+
 class Zoho 
 {
 
     public  function getZohoCrmAuthToken()
     {
         //sandbox
-        $zoho_token_request = 'refresh_token=1000.63092452ac4bfa9bc4766e1efc68c75b.2964edecf2f227bdebeb4c3088173c2f&client_id=1000.T6JSHXG93T9Y4FTURO5RV6UMG23GBE&client_secret=c45808c9c34377da420952f2c54f8696663f49011f&grant_type=refresh_token';
+        $zoho_token_request = env('MIMS_REQUEST_TOKEN');
         //production
         $zoho_header = array('Content-Type: application/x-www-form-urlencoded');
         $api_url = 'https://accounts.zoho.com/oauth/v2/token';
@@ -59,6 +62,28 @@ class Zoho
         }
     }
 
+    public  function  idDecodeAndEncode($action, $string) {
+        $output = false;
+    
+        $encrypt_method = "AES-256-CBC";
+        //pls set your unique hashing key
+        $secret_key = 'mims';
+        $secret_iv = 'mims123';
+    
+        // hash
+        $key = hash('sha256', $secret_key);
+        $iv = substr(hash('sha256', $secret_iv), 0, 16);
+        if( $action == 'encrypt' ) {
+            $output = openssl_encrypt($string, $encrypt_method, $key, 0, $iv);
+            $output = base64_encode($output);
+        }
+        else if( $action == 'decrypt' ){
+            $output = openssl_decrypt(base64_decode($string), $encrypt_method, $key, 0, $iv);
+        }
+    
+        return $output;
+    }
+
    public  function logApiCall($log_data = array()){
         $log_date = date('Y-m-d H:i:s');
         $log_name = '';
@@ -88,6 +113,22 @@ class Zoho
         }
         DB::insert('insert into api_log (log_date, log_name, log_request, log_response, log_request_url, log_referrer) values (?,?,?,?,?,?)', array($log_date, $log_name,
             $log_request,$log_response,$log_request_url,$log_referrer));
+
+            $arrayResponce = json_decode($log_response, true);
+            if($log_name == 'Zoho CRM Quotes Send API' && $arrayResponce["data"][0]['status'] == 'success')
+            {
+                $requestData = json_decode($log_request, true);
+                $Quotation = Quotation::find($requestData["data"][0]['Quotation_Primary_Id']);
+                $Quotation->zoho_quotation_id = $arrayResponce["data"][0]['details']['id'];
+                $Quotation->save();
+            }
+            elseif($log_name == 'Zoho CRM Add Price Send API' && $arrayResponce["data"][0]['status'] == 'success')
+            {
+                $requestData = json_decode($log_request, true);
+                $serivcePayment = ServicePayment::find($requestData["data"][0]['ServicePaymentId']);
+                $serivcePayment->zoho_payment_id = $arrayResponce["data"][0]['details']['id'];
+                $serivcePayment->save();
+            }
     }
 
     public static function getMimsCrmAuthToken()
@@ -143,7 +184,20 @@ class Zoho
         $response = array();
         foreach($required_fields as $field) {
             if (isset($rqst[$field]) && empty($rqst[$field])) 
-                 $response[]= 'Required field '.$field. ' is empty';
+                 $response[]= $field;
+                // $response[]= 'Required field '.$field. ' is empty';
+        }
+         return $response;
+      }
+
+      public static function validationMissingKey($required_fields,$rqst)
+      {
+        $response = array();
+        foreach($required_fields as $field) {
+        if(!isset($rqst[$field]))
+            $response[]= $field;
+        else if (isset($rqst[$field]) && empty($rqst[$field])) 
+                 $response[]= $field;
         }
          return $response;
       }
@@ -161,111 +215,7 @@ class Zoho
           DB::insert('insert into media_history (media_id,action_type,module_type,added_by,remarks,added_on,status,ext_status) values (?,?,?,?,?,?,?,?)', array($media->id,
                         $type,$module,$user,$remarks,Carbon::now()->toDateTimeString(),$media->stage,$extStatus));
       }
-	  
-	 public static function sendZohoCrmNotes($params = '', $request_type, $limit = 1,$remarks){
-		    $zoho_tokeninfo = (new self)->getZohoCrmAuthToken();
-        if($zoho_tokeninfo == false){
-            $zoho_tokeninfo =(new self)->getZohoCrmAuthToken();
-        }
-		if($request_type == 'PRE-ANALYSIS'){
-		$api_url= 'https://crmsandbox.zoho.com/crm/v2/Media_Pickup/'.$params->zoho_id.'/Notes';
-		$zoho_crm_data = json_encode((new self)->dataFormateNotes($params,$remarks,'Media_Pickup'));
-		$api_name= 'Zoho CRM Notes API';
-		$push_method = "POST";
-		}
-        elseif($request_type == 'INSPECTION'){
-            $api_url= 'https://crmsandbox.zoho.com/crm/v2/Job_ID/'.$params->zoho_job_id.'/Notes';
-            $zoho_crm_data = json_encode((new self)->dataFormateNotes($params,$remarks,'Job_ID'));
-            $api_name= 'Zoho CRM Notes API';
-            $push_method = "POST";
-        }
-		  if($zoho_tokeninfo && !empty($request_type)){
-            $zoho_header = array(
-            'Content-Type: application/json',
-            'Authorization: Zoho-oauthtoken '.$zoho_tokeninfo.''
-            );                                                             
-            $zch = curl_init($api_url);
-            curl_setopt($zch, CURLOPT_CUSTOMREQUEST, $push_method);           
-            curl_setopt($zch, CURLOPT_POSTFIELDS, $zoho_crm_data);    
-            curl_setopt($zch, CURLOPT_MAXREDIRS, 5);  
-            curl_setopt($zch, CURLOPT_TIMEOUT, 10);                   
-            curl_setopt($zch, CURLOPT_RETURNTRANSFER, true);   
-            curl_setopt($zch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($zch, CURLOPT_HTTPHEADER, $zoho_header);
-            
-            $zoho_result = curl_exec($zch);
-            $error = curl_error($zch);
-            curl_close($zch);
-            
-            //Log Api data
-            $log_data = array(
-                "log_name" => $api_name,
-                "log_request_url" => $api_url,
-                "log_request" => $zoho_crm_data,
-                "log_response" => !empty($error) ? $error : $zoho_result
-            );
-            (new self)->logApiCall($log_data);
-              
-            //retry if error
-            if ($error && $limit == 1) {
-              sendZohoCrmNotes($params,$request_type,0,$remarks);
-            } 
-            else 
-            {
-                $json_decode =  json_decode($zoho_result, true);
-                if(array_key_exists("status",$json_decode['data'][0]) && $json_decode['data'][0]['status'] == 'error' && $limit == 1){
-                    sendZohoCrmNotes($params,$request_type,0,$remarks);
-                }
-            }
-        } else{
-            //Log Api data
-            $log_data = array(
-                "log_name" => $api_name,
-                "log_request_url" => $api_url,
-                "log_request" => $zoho_crm_data,
-                "log_response" => 'Authentication Token Failure'
-            );
-            (new self)->logApiCall($log_data);
-        }
-	}
-
-    public static function sendAttachmentZoho($params = '', $request_type, $limit = 1)
-    {
-        $zoho_tokeninfo = (new self)->getZohoCrmAuthToken();
-        if($zoho_tokeninfo == false){
-            $zoho_tokeninfo =(new self)->getZohoCrmAuthToken();
-        }
-        if($zoho_tokeninfo && !empty($request_type)){
-            $api_url= 'https://crmsandbox.zoho.com/crm/v2/Job_ID/'.$params->zoho_job_id.'/Attachments';
-            $api_name= 'Attachment';
-            $zoho_crm_data = array("attachmentUrl"=>$params->url);
-            $push_method = "POST";
-            $zoho_header = array(
-                'Content-Type: multipart/form-data; boundary=<calculated when request is sent>',
-                'Authorization: Zoho-oauthtoken '.$zoho_tokeninfo
-                );                                                             
-            $zch = curl_init($api_url);
-            curl_setopt($zch, CURLOPT_CUSTOMREQUEST, $push_method);           
-            curl_setopt($zch, CURLOPT_POSTFIELDS, $zoho_crm_data);    
-            curl_setopt($zch, CURLOPT_MAXREDIRS, 5);  
-            curl_setopt($zch, CURLOPT_TIMEOUT, 10);                   
-            curl_setopt($zch, CURLOPT_RETURNTRANSFER, true);   
-            curl_setopt($zch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($zch, CURLOPT_HTTPHEADER, $zoho_header);            
-            $zoho_result = curl_exec($zch);
-            $error = curl_error($zch);
-            curl_close($zch);
-            //Log Api data
-            $log_data = array(
-                "log_name" => $api_name,
-                "log_request_url" => $api_url,
-                "log_request" => json_encode($zoho_crm_data),
-                "log_response" => !empty($error) ? $error : $zoho_result
-            );
-            (new self)->logApiCall($log_data);
-        }
-    }
-
+	
       public static function sendZohoCrmData($params = '', $request_type, $limit = 1){
         
         $zoho_tokeninfo = (new self)->getZohoCrmAuthToken();
@@ -274,69 +224,129 @@ class Zoho
         }
         if($request_type == 'PRE-ANALYSIS'){
             $zoho_crm_data = json_encode((new self)->dataFormatePreAnalysis($params));
-            $api_url= 'https://crmsandbox.zoho.com/crm/v2/Media_Pickup';
+            $api_url= env('MIMS_API_URL').'/crm/v2/Deals';
             $api_name= 'Zoho CRM Pre Analysis API';
             $push_method = "PUT";
         }
+        elseif($request_type == 'STATUS-CHANGE'){
+            $zoho_crm_data = json_encode((new self)->datastatusupdate($params));
+            $api_url=  env('MIMS_API_URL').'/crm/v2/Deals';
+            $api_name= 'Zoho CRM STATUS CHANGE';
+            $push_method = "PUT";
+        }
+        elseif($request_type == 'EXTENSION-UPDATE'){
+            $zoho_crm_data = json_encode((new self)->dataExtensionUpdate($params));
+            $api_url=  env('MIMS_API_URL').'/crm/v2/Deals';
+            $api_name= 'Extension Update';
+            $push_method = "PUT";
+        }
         elseif($request_type == 'INSPECTION'){
-            $api_url= 'https://crmsandbox.zoho.com/crm/v2/Job_ID';
+            $api_url= env('MIMS_API_URL').'/crm/v2/Deals';
             $api_name= 'Zoho CRM Inspection API';
             $push_method = "PUT";
             $zoho_crm_data = json_encode((new self)->dataFormateInspection($params));
         }
-        elseif($request_type == 'EXTENSION-DAY'){
-            $api_url= 'https://crmsandbox.zoho.com/crm/v2/Job_ID';
-            $api_name= 'Zoho CRM Inspection API';
+        elseif($request_type == 'PRICE-UPDATE'){
+            $api_url= env('MIMS_API_URL').'/crm/v2/Deals';
+            $api_name= 'Zoho CRM PRICE UPDATE API';
             $push_method = "PUT";
-            $zoho_crm_data = json_encode((new self)->dataFormateExtension($params));
+            $zoho_crm_data = json_encode((new self)->dataFormatePriceUpdate($params));
         }
-        elseif($request_type == 'NOT-DONE'){
-            $api_url= 'https://crmsandbox.zoho.com/crm/v2/Job_ID';
-            $api_name= 'Zoho CRM Recovery API';
+        elseif($request_type == 'PAYMENT-UPDATE'){
+            $api_url= env('MIMS_API_URL').'/crm/v2/Deals';
+            $api_name= 'Zoho CRM PAYMENT UPDATE API';
             $push_method = "PUT";
-            $zoho_crm_data = json_encode((new self)->dataFormateNotDone($params));
+            $zoho_crm_data = json_encode((new self)->dataFormatePaymentUpdate($params));
+        }
+        elseif($request_type == 'CONTACT-EDIT'){
+            $api_url= env('MIMS_API_URL').'/crm/v2/Contacts';
+            $api_name= 'Zoho CRM CONTACT UPDATE API';
+            $push_method = "PUT";
+            $zoho_crm_data = json_encode((new self)->dataFormateContact($params));
+        }
+        elseif($request_type == 'COMPANY-EDIT'){
+            $api_url= env('MIMS_API_URL').'/crm/v2/Accounts';
+            $api_name= 'Zoho CRM COMPANY UPDATE API';
+            $push_method = "PUT";
+            $zoho_crm_data = json_encode((new self)->dataFormateCompany($params));
+        }
+        elseif($request_type == 'QUOTATION'){
+            $api_url= env('MIMS_API_URL').'/crm/v2.1/Quotes';
+            $api_name= 'Zoho CRM Quotes Send API';
+            $push_method = "POST";
+            $zoho_crm_data = json_encode((new self)->dataFormateQuotes($params));
+        }
+        elseif($request_type == 'ADD-PAYMENT'){
+            $api_url= env('MIMS_API_URL').'/crm/v2.1/Customer_Payments';
+            $api_name= 'Zoho CRM Add Price Send API';
+            $push_method = "POST";
+            $zoho_crm_data = json_encode((new self)->dataFormatPaymentAdd($params));
+        }
+        elseif($request_type == 'INVOICE-PAYMENT-UPDATE'){
+            $api_url= env('MIMS_API_URL').'/crm/v2.1/Customer_Payments';
+            $api_name= 'Zoho CRM Update Price Send API';
+            $push_method = "PUT";
+            $zoho_crm_data = json_encode((new self)->dataFormatPaymentUpdate($params));
         }
         elseif($request_type == 'OBSERVATION'){
-            $api_url= 'https://crmsandbox.zoho.com/crm/v2/Job_ID';
-            $api_name= 'Zoho CRM OBSERVATION API';
+            $api_url= env('MIMS_API_URL').'/crm/v2/Deals';
+            $api_name= 'Zoho CRM Add Observation Send API';
             $push_method = "PUT";
-            $zoho_crm_data = json_encode((new self)->dataFormateOvervation($params));
+            $zoho_crm_data = json_encode((new self)->dataFormatObservation($params));
         }
         elseif($request_type == 'CLONECREATION' || $request_type == 'DATA-ENCRYPTED' || $request_type == 'RECOVERABLE-DATA'){
-            $api_url= 'https://crmsandbox.zoho.com/crm/v2/Job_ID';
+            $api_url= env('MIMS_API_URL').'/crm/v2/Deals';
             $api_name= 'Zoho CRM '.$request_type.' API';
             $push_method = "PUT";
             $zoho_crm_data = json_encode((new self)->dataFormateRecovery($params));
         }
-        elseif($request_type == 'DL'){
-            $api_url= 'https://crmsandbox.zoho.com/crm/v2/Job_ID';
+        elseif($request_type == 'Directory-Listing'){
+            $api_url= env('MIMS_API_URL').'/crm/v2/Deals';
             $api_name= 'Zoho CRM DL API';
             $push_method = "PUT";
             $zoho_crm_data = json_encode((new self)->dataFormateDL($params));
         }
-        elseif($request_type == 'DATAOUT'){
-            $api_url= 'https://crmsandbox.zoho.com/crm/v2/Job_ID';
-            $api_name= 'Zoho CRM DATAOUT API';
+        elseif($request_type == 'DIRECTORY-CONFIRM'){
+            $api_url= env('MIMS_API_URL').'/crm/v2/Deals';
+            $api_name= 'Zoho CRM DL API';
             $push_method = "PUT";
-            $zoho_crm_data = json_encode((new self)->dataFormateDataOut($params));
+            $zoho_crm_data = json_encode((new self)->dataFormateDLConfirm($params));
         }
-        elseif($request_type == 'MEDIA_OUT'){
-            $api_url= 'https://crmsandbox.zoho.com/crm/v2/Job_ID';
-            $api_name= 'Zoho CRM MEDIA OUT API';
+        elseif($request_type == 'REWORK'){
+            $api_url= env('MIMS_API_URL').'/crm/v2/Deals';
+            $api_name= 'Zoho CRM DL API';
             $push_method = "PUT";
-            $zoho_crm_data = json_encode((new self)->dataFormateMediaOut($params));
+            $zoho_crm_data = json_encode((new self)->dataFormateRework($params));
         }
-        elseif($request_type == 'WIPING'){
-            $api_url= 'https://crmsandbox.zoho.com/crm/v2/Job_ID';
-            $api_name= 'Zoho CRM MEDIA OUT API';
+        elseif($request_type == 'DATA-OUT-TECH' || $request_type == 'DATA-OUT-ISE'){
+            $api_url= env('MIMS_API_URL').'/crm/v2/Deals';
+            $api_name= 'Zoho CRM '. $request_type. ' API';
             $push_method = "PUT";
-            $zoho_crm_data = json_encode((new self)->dataFormateWiping($params));
+            $zoho_crm_data = json_encode((new self)->dataFormateDatOut($params));
         }
-        elseif($request_type == 'GATEPASS_UPDATE'){
-            $api_url= 'https://crmsandbox.zoho.com/crm/v2/Job_ID';
-            $api_name= 'Zoho CRM GATEPASS UPDATE API';
+        elseif($request_type == 'DAILY-STATUS'){
+            $api_url= env('MIMS_API_URL').'/crm/v2/Deals';
+            $api_name= 'Zoho CRM '. $request_type. ' API';
             $push_method = "PUT";
-            $zoho_crm_data = json_encode((new self)->dataFormateGatePass($params));
+            $zoho_crm_data = json_encode((new self)->dataFormateDailyStatus($params));
+        }
+        elseif($request_type == 'MEDIA-OUT-CUSTOMER'){
+            $api_url= env('MIMS_API_URL').'/crm/v2/Deals';
+            $api_name= 'Zoho CRM '. $request_type. ' API';
+            $push_method = "PUT";
+            $zoho_crm_data = json_encode((new self)->dataFormateMediaOutClient($params));
+        }
+        elseif($request_type == 'WIPING-REQUEST'){
+            $api_url= env('MIMS_API_URL').'/crm/v2/Deals';
+            $api_name= 'Zoho CRM '. $request_type. ' API';
+            $push_method = "PUT";
+            $zoho_crm_data = json_encode((new self)->WipingRequest($params));
+        }
+        elseif($request_type == 'WIPING-REQUEST-UPDATE'){
+            $api_url= env('MIMS_API_URL').'/crm/v2/Deals';
+            $api_name= 'Zoho CRM '. $request_type. ' API';
+            $push_method = "PUT";
+            $zoho_crm_data = json_encode((new self)->WipingRequestUpdate($params));
         }
         if($zoho_tokeninfo && !empty($request_type)){
             $zoho_header = array(
@@ -388,126 +398,89 @@ class Zoho
         }
        
     }
-
-        public  function dataFormatePreAnalysis($params = array())
-        {
-            $zoho_crm_data = array(
-				"data" => array(
-				  array(
-					"id" => $params->zoho_id,
-					"Name" => (new self)->_getClientName($params->customer_id),
-					"Make" => $params->media_make,
-					"Model" => $params->media_model,
-					"Media_Type" =>$params->media_type,
-					"Serial_Number" => $params->media_serial,
-					"Capacity" => $params->media_capacity,
-					"Tampered_Status" => $params->tampered_status,
-					"Media_Condition" => $params->media_condition,
-					"Peripherals_Details" => !empty($params->peripherals_details) ? strip_tags($params->peripherals_details) : "",
-					"Media_Checking_Done" => ($params->stage == '3') ? true : false,
-                    "Peripherals_With_Media" => $params->media_casing,
-                    "Media_Status" => $params->media_status
-				  )
-				),
-				"trigger" => array(
-					"approval",
-					"workflow",
-					"blueprint",
-				)
-			);
-
-            return $zoho_crm_data;
+	
+	 // Get Zoho CRM DATA
+    public static function GetZohoCrmData($params = array(), $request_type, $limit = 1){
+        
+        $zoho_tokeninfo = (new self)->getZohoCrmAuthToken();
+        if($zoho_tokeninfo == false){
+            $zoho_tokeninfo =(new self)->getZohoCrmAuthToken();
         }
 
-        public function dataFormateExtension($params = array())
-        {
-            $objDateTime = new DateTime();
-            $zoho_crm_data = array(
-				"data" => array(
-				  array(
-					"id" => $params->zoho_job_id,
-					"Extension_Day" => $params->extension_day,
-					"Extension_Reason" => $params->extReason
-				  )
-				),
-				"trigger" => array(
-					"approval",
-					"workflow",
-					"blueprint",
-				)
-			);
-
-            return $zoho_crm_data;
+        if($request_type == 'CUSTOMER-PAYMENTS' && $params['id']!=''){
+            $api_url=  env('MIMS_API_URL').'/crm/v2/Customer_Payments/'.$params['id'];
+            $api_name= 'Zoho CRM Customer Payments API';
+            $push_method = "GET";
         }
 
-        public function dataFormateGatePass($params = array())
-        {
-            if($params->mediaOutType == 1)
-            {
-            $zoho_crm_data = array(
-				"data" => array(
-				  array(
-					"id" => $params->zoho_job_id,
-					"Mode_of_Data_Out" =>$params->transfer_mode,
-					"Data_Out_Name" =>$params->ref_name_num,
-                    )
-				),
-				"trigger" => array(
-					"approval",
-					"workflow",
-					"blueprint",
-				)
-			);
+        if($zoho_tokeninfo && !empty($request_type)){
+            $zoho_header = array(
+            'Content-Type: application/json',
+            'Authorization: Zoho-oauthtoken '.$zoho_tokeninfo.''
+            );                                                             
+            $zch = curl_init($api_url);
+            curl_setopt($zch, CURLOPT_CUSTOMREQUEST, $push_method);  
+            curl_setopt($zch, CURLOPT_MAXREDIRS, 5);  
+            curl_setopt($zch, CURLOPT_TIMEOUT, 10);                   
+            curl_setopt($zch, CURLOPT_RETURNTRANSFER, true);   
+            curl_setopt($zch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($zch, CURLOPT_HTTPHEADER, $zoho_header);
+            
+            $zoho_result = curl_exec($zch);
+            $error = curl_error($zch);
+            curl_close($zch);
+            $result_decode = json_decode($zoho_result,true);
+            //return $zoho_result;
+            if(!isset($result_decode)){
+                $log_data = array(
+                    "status" => 'error',
+                    "result" =>  'Customer Details Not Found'
+                );
+            }else if(array_key_exists("status",$result_decode) && $result_decode['status']=='error'){
+                $log_data = array(
+                    "status" => 'error',
+                    "result" =>  $result_decode['message']
+                );
+            }else{
+                $log_data = array(
+                    "status" => 'success',
+                    "result" =>  $result_decode
+                );
+            }
+            //Log Api data
+            return $log_data;
+        } else {
+            //Log Api data
+            $log_data = array(
+                "status" => 'error',
+                "result" => 'Authentication Token Failure'
+            );
+            return $log_data;
         }
-        elseif($params->mediaOutType == 2)
-            {
-            $zoho_crm_data = array(
-				"data" => array(
-				  array(
-					"id" => $params->zoho_job_id,
-					"Mode_of_Media_Out" =>$params->transfer_mode,
-					"Media_Out_Name" =>$params->ref_name_num,
-                    )
-				),
-				"trigger" => array(
-					"approval",
-					"workflow",
-					"blueprint",
-				)
-			);
-        }
-            return $zoho_crm_data;
-        }
+    }
 
-        public function dataFormateWiping($params = array())
-        {
-            $Wiping_Date = DateTime::createFromFormat('Y-m-d h:i:s', $params->WipingDate);
-            $zoho_crm_data = array(
-				"data" => array(
-				  array(
-					"id" => $params->zoho_job_id,
-					"Wiping_Date"=>$Wiping_Date->format('Y-m-d'),
-					"Wiping_Done_Status"=>$params->Wipingstatus,
-				  )
-				),
-				"trigger" => array(
-					"approval",
-					"workflow",
-					"blueprint",
-				)
-			);
-            return $zoho_crm_data;
-        }
-
-        public function dataFormateMediaOut($params = array())
+    public  function dataFormatePreAnalysis($params = array())
         {
             $stege = Stage::find($params->stage);
             $zoho_crm_data = array(
 				"data" => array(
 				  array(
-					"id" => $params->zoho_job_id,
-					"Current_Status"=>$stege->stage_name,
-					"Job_Stage"=>$stege->stage_name,
+					"id" => $params->deal_id,
+					"Current_Status" =>$stege->stage_name,
+					"Job_Number" => $params->job_id,
+                    "Media_Type" =>$params->media_type,
+                    "Media_Category" =>$params->media_category,
+                    "Media_Make" =>$params->media_make,
+                    "Media_Model" =>$params->media_model,
+                    "Media_Serial" =>$params->media_serial,
+                    "Type_of_Interface" =>$params->media_interface,
+                    "Media_Capacity" =>$params->media_capacity,
+                    "Media_Status" =>$params->media_status,
+                    "Media_Condition" =>$params->media_condition,
+                    "Peripherals_Details" =>$params->peripherals_details,
+                    "Problem_Type" =>$params->media_problem,
+                    "MIMS_Notes" =>$params->remarks,
+                    "MIMS_Notes_Title" =>!empty((new self)->_getUserName(auth()->user()->id)) ? (new self)->_getUserName(auth()->user()->id).' (MIMS)' : "MIMS User",
 				  )
 				),
 				"trigger" => array(
@@ -516,21 +489,204 @@ class Zoho
 					"blueprint",
 				)
 			);
+            if($params->stage == 3 && count($params->price) > 0)
+            {
+              $zoho_crm_data['data'][0]['Recovery_Charges'] = $params->price;
+              $zoho_crm_data['data'][0]['Payment_Link'] = url('payment')."/".(new self)->idDecodeAndEncode('encrypt',$params->id);
+            }
             return $zoho_crm_data;
         }
 
-        public function dataFormateDataOut($params = array())
+    public function datastatusupdate($params = array())
+    {
+        $stege = Stage::find($params->stage);
+        $zoho_crm_data = array(
+            "data" => array(
+              array(
+                "id" => $params->deal_id,
+                "Current_Status" =>$stege->stage_name,
+                "Job_Number" => $params->job_id,
+                "Not_Interested_Reason" =>($params->stage ==15)?$params->remarks:'',
+                "Not_Done_Reason" =>($params->stage ==14)?$params->remarks:'',
+               // "Inspection_Due_Date" =>($params->stage ==4)?$params->assessment_due_date:'',
+              )
+            ),
+            "trigger" => array(
+                "approval",
+                "workflow",
+                "blueprint",
+            )
+        );
+        if($params->stage ==4)
+            $zoho_crm_data['data'][0]['Inspection_Due_Date'] = $params->assessment_due_date;
+        return $zoho_crm_data;
+    }
+
+    public function dataExtensionUpdate($params = array())
+    {
+        $zoho_crm_data = array(
+            "data" => array(
+              array(
+                "id" => $params->deal_id,
+                "Inspection_Due_Date" =>$params->assessment_due_date,
+              )
+            ),
+            "trigger" => array(
+                "approval",
+                "workflow",
+                "blueprint",
+            )
+        );
+
+        return $zoho_crm_data;
+    }
+
+    public function dataFormateInspection($params = array())
+        {
+            $objDateTime = new DateTime();
+            $caseNotPossible = null;
+            $dueReson = null;
+            if($params->recovery_possibility == 'No')
+            {
+                $caseNotPossible = implode(", ",$params->no_recovery_reason);
+                if($params->no_recovery_reason_other != null)
+                $caseNotPossible = $caseNotPossible.",".$params->no_recovery_reason_other;
+            }
+            if($params->stage == 5 && $params->assessment_due_reason !=null)
+            {
+                $dueReson = implode(", ",$params->assessment_due_reason);
+                if($params->assessment_due_reason_other != null)
+                $dueReson = $dueReson.", ".$params->assessment_due_reason_other;
+            }
+            $stege = Stage::find($params->stage);
+            $zoho_crm_data = array(
+				"data" => array(
+				  array(
+					"id" => $params->deal_id,
+					"Current_Status" =>$stege->stage_name,
+					"Job_Number" => $params->job_id,
+					"Case_Type" => $params->case_type,
+					"Tamper_Open_Permission" => $params->tampering_required,
+					"Further_Use_of_Media" => $params->further_use,
+					"Media_Os" => $params->media_os,
+					"Media_Found_Encrypted" => $params->encryption_status,
+					"Encryption_Name" => $params->encryption_name,
+					"Encryption_Level_Identified" => $params->encryption_type,
+					"Accuracy_of_Provided_Decryption_Details" => $params->encryption_details_correct,
+					"Recovery_Possibility" => $params->recovery_possibility,
+					"Media_Similar_Spare" => $params->spare_required,
+					"Notes_for_Customer" => $params->notes,
+					"Case_Not_Possible_Reason" => $caseNotPossible,
+					"Days_Required_for_Recovery" => $params->required_days,
+					"Recovered_Data_Files_and_Folder_Structure" => $params->recoverable_data,
+					"Recovery_Percentage" => $params->recovery_percentage,
+					"Inspection_due_reason" => $dueReson,
+					"Extension_Required" => $params->extension_required,
+					"Extension_Required_Days" => $params->extension_day,
+                    "MIMS_Notes" =>$params->remarks,
+                    "MIMS_Notes_Title" =>!empty((new self)->_getUserName(auth()->user()->id)) ? (new self)->_getUserName(auth()->user()->id).' (MIMS)' : "MIMS User",
+				  )
+				),
+				"trigger" => array(
+					"approval",
+					"workflow",
+					"blueprint",
+				)
+			);
+            if($params->stage !='4' && $params->stage !='5')
+            {
+                $zoho_crm_data['data'][0]['Inspection_Status'] ='Inspection Done';
+                $zoho_crm_data['data'][0]['Stage'] ='Assessment/Data Recovery Quote';
+                $zoho_crm_data['data'][0]["Inspection_By_User"]= !empty((new self)->_getUserName(auth()->user()->id)) ? (new self)->_getUserName(auth()->user()->id) : "MIMS User";
+                $zoho_crm_data['data'][0]["Inspection_Done_On"]= $objDateTime->format('c');
+            }
+            if($params->stage == 6 && count($params->countMediaPrice) == 0)
+            {
+                $zoho_crm_data['data'][0]['Recovery_Charges'] = $params->price;
+                $zoho_crm_data['data'][0]['Payment_Link'] = url('payment')."/".(new self)->idDecodeAndEncode('encrypt',$params->id);
+            }
+            return $zoho_crm_data;
+        }
+
+        public function dataFormatePriceUpdate($params = array())
         {
             $zoho_crm_data = array(
 				"data" => array(
 				  array(
-					"id" => $params->zoho_job_id,
-					"Data_Copy_Done" =>"Yes",
-					"Data_Out1" =>"Yes",
-					"Current_Status"=>"Data out",
-					"Job_Stage"=>"Data out",
-                    "Client_Serial_No"=>($params["DL"]->copyin_details !=null)?$params["DL"]['copyin_details'][0]['media_sn']:null,
-                    "Client_Make_Model"=>($params["DL"]->copyin_details !=null)?$params["DL"]['copyin_details'][0]['media_model']:null
+					"id" => $params->deal_id,
+                    "Recovery_Charges"=>$params->price
+				  )
+				),
+				"trigger" => array(
+					"approval",
+					"workflow",
+					"blueprint",
+				)
+			);
+            if($params->SelectedPlan != null)
+            {
+                $zoho_crm_data['data'][0]['Total_Service_Fee'] = (int)$params->SelectedPlan->total_amount;
+                $zoho_crm_data['data'][0]['Amount_Paid'] = (int)$params->SelectedPlan->paid_amount;
+                $zoho_crm_data['data'][0]['Tax_Applicable'] = strval($params->SelectedPlan->tax_amount);
+                $zoho_crm_data['data'][0]['Balance_Amount'] =(int) $params->SelectedPlan->balance_amount;
+                $zoho_crm_data['data'][0]['Selected_Plan'] =$params->SelectedPlanType;
+            }
+            return $zoho_crm_data;
+
+        }
+
+        public function dataFormatePaymentUpdate($params = array())
+        {
+            $zoho_crm_data = array(
+				"data" => array(
+				  array(
+					"id" => $params->deal_id,
+                    "Total_Service_Fee"=>(int)$params->SelectedPlan->total_amount,
+                    "Amount_Paid"=>(int)$params->SelectedPlan->paid_amount,
+                    "Tax_Applicable"=>strval($params->SelectedPlan->tax_amount),
+                    "Balance_Amount"=>(int)$params->SelectedPlan->balance_amount,
+				  )
+				),
+				"trigger" => array(
+					"approval",
+					"workflow",
+					"blueprint",
+				)
+			);
+            if($params->SelectdPlanType != null)
+            {
+                $zoho_crm_data['data'][0]['Selected_Plan'] =$params->SelectdPlanType;
+            }
+            return $zoho_crm_data;
+        }
+
+        public function dataFormateContact($params = array())
+        {
+            $zoho_crm_data = array(
+				"data" => array(
+				  array(
+					"id" => $params->zoho_contact_id,
+                    "First_Name"=>$params->first_name,
+                    "Last_Name"=>$params->last_name,
+                    "Email"=>$params->email,
+                    "Mobile"=>$params->mobile,
+                    "Mailing_Street"=>$params->mailing_street,
+                    "Mailing_Region"=>$params->mailing_region,
+                    "Mailing_City"=>$params->mailing_city,
+                    "Mailing_State_Code"=>$params->mailing_state_code,
+                    "Mailing_Country"=>$params->mailing_country,
+                    "Mailing_State_UT"=>$params->mailing_state_ut,
+                    "Mailing_Zip"=>$params->mailing_zip,
+                    "Use_Billing_Address"=>$params->use_billing_address,
+                    "Billing_Name"=>$params->billing_name,
+                    "Billing_Email"=>$params->billing_email,
+                    "Billing_Phone"=>$params->billing_phone,
+                    "Billing_Street"=>$params->billing_street,
+                    "Billing_City"=>$params->billing_city,
+                    "Billing_State"=>$params->billing_state,
+                    "Billing_State_Code"=>$params->billing_state_code,
+                    "Billing_Zip"=>$params->billing_zip,
+                    "GST_Number"=>$params->gst_number,
 				  )
 				),
 				"trigger" => array(
@@ -542,18 +698,28 @@ class Zoho
             return $zoho_crm_data;
         }
 
-        public function dataFormateDL($params = array())
+        public function dataFormateCompany($params = array())
         {
-           $zoho_crm_data = array(
+            $zoho_crm_data = array(
 				"data" => array(
 				  array(
-					"id" => $params->zoho_job_id,
-					"Type_of_Data_Recovered" =>str_replace(["[","]",'"'],'','"'.$params['DL']['data_recovered'].'"'),
-					"Recovered_Data_Size" => $params['DL']['recoverable_data'],
-					"Total_Number_of_Files" => $params['DL']['total_file'],
-					"Uplaod_Directory_Listing" => $params['DL']['directory_listing'],
-					"Total_Data_Size" => $params['DL']['total_data_size']." ".$params['DL']['total_data_size_format'],
-                    "Current_Status"=>"Directory Listing Submitted"
+					"id" => $params->zoho_company_id,
+                    "Account_Name"=>$params->company_name,
+                    "GST_Number"=>$params->gst_number,
+                    "Billing_Street"=>$params->billing_street,
+                    "Billing_Landmark"=>$params->billing_landmark,
+                    "Billing_City"=>$params->billing_city,
+                    "Billing_State_UT"=>$params->billing_state_ut,
+                    "Billing_State_Code"=>$params->billing_state_code,
+                    "Billing_Code"=>$params->billing_code,
+                    "Billing_Country"=>$params->billing_country,
+                    "Shipping_Street"=>$params->shipping_street,
+                    "Shipping_Landmark"=>$params->shipping_landmark,
+                    "Shipping_City"=>$params->shipping_city,
+                    "Shipping_State_UT"=>$params->shipping_state_ut,
+                    "Shipping_State_Code"=>$params->shipping_state_code,
+                    "Shipping_Code"=>$params->shipping_code,
+                    "Shipping_Country"=>$params->shipping_country,
 				  )
 				),
 				"trigger" => array(
@@ -562,29 +728,194 @@ class Zoho
 					"blueprint",
 				)
 			);
+            return $zoho_crm_data;
+        }
+
+        public function dataFormateQuotes($params = array())
+        {
+            $zoho_crm_data = array(
+				"data" => array(
+				  array(
+					"Account_Name" => $params->company_id,
+					"Deal_Name" => $params->deal_id,
+					"Contact_Name" => $params->customer_id,
+					"Valid_Till" => date("Y-m-d", strtotime("+ 7 day")),
+					"Subject" => $params->Quotation->quotation_no,
+					"Description" => $params->Quotation->description,
+					"Discount_Percent" => (float)$params->Quotation->discount,
+					"Quote_Stage" => "Draft",
+                    "Discount" => (int)$params->Quotation->discount_amount,
+                    "Tax_Amount" => (int)$params->Quotation->tax_amount,
+                    "Quotation_Primary_Id" => (int)$params->Quotation->id,
+                    "Owner" => (new self)->getzohouserid($params->ise_user_id),
+					"Quoted_Items" => array(array('Service_Fee_Type'=>$params->PlanDetails->plan_type,"Quantity"=>1,'Product_Name'=>$params->PlanDetails->zoho_plan_id,'List_Price'=>(int)$params->Quotation->base_amount,"Total"=>(int)$params->Quotation->base_amount)),
+                )
+				),
+				"trigger" => array(
+					"approval",
+					"workflow",
+					"blueprint",
+				)
+			);
+            return $zoho_crm_data;
+        }
+
+        public function dataFormatPaymentAdd($params = array())
+        {
+            $objDateTime = new DateTime($params->ServiceInvoice->created_on);
+            $zoho_crm_data = array(
+				"data" => array(
+				  array(
+					"Name" => $params->ServiceRequest->firstname,
+					"Payment_Type" => ($params->ServicePayment->payment_type =='ADVC')?'Advance Payment':'Other',
+					"Amount_Type" => ($params->ServicePayment->payment_type =='ADVC')?'Advance Recovery Fee':'Final Recovery Fee',
+					//"Valid_Till" => date("Y-m-d", strtotime("+ 7 day")),
+					"Payment_Channel" => $params->ServicePayment->payment_channel,
+					"Create_Invoice_For" => ($params->ServicePayment->existing_payment==null)?'Existing Payment':$params->ServicePayment->existing_payment,
+					"Source" => $params->ServicePayment->payment_mode,
+					"Base_Amount" => (int)$params->ServiceInvoice->base_amount,
+                    "Transaction_ID" => $params->ServicePayment->payment_txnid,
+                    "Tax_Applicable" =>  ($params->ServicePayment->tax_rate==null || $params->ServicePayment->tax_rate==0)?'Without GST':'With GST',
+                    "Status" => 'success',
+                    "Invoice_Status" => 'Invoice Generated',
+					"Payment_Time_Stamp" => $objDateTime->format('c'),
+                    "Account_Type" =>"Service",
+                    "Amount" =>(int)$params->ServiceInvoice->final_amount,
+                    "GST" =>(int)$params->ServicePayment->total_tax,
+                    "ServicePaymentId" =>(int)$params->ServicePayment->id,
+                    "Invoice_ID" =>$params->ServiceInvoice->invoice_no,
+                    "Invoice_Link" =>env('MIMS_BASE_URL')."view-invoice/".$params->ServiceInvoice->id."/".$params->ServiceInvoice->request_id,
+                    "ARN_Number" =>$params->ServiceInvoice->arn_num,
+                    "IRN_Number"=>$params->ServiceInvoice->irn_code,
+                    "Customer_Type"=>($params->ServiceInvoice->irn_code == null)?'B2C':'B2B',
+                    "GST_IN" =>$params->ServiceRequest->gst_no,
+                    "Email" =>$params->ServiceRequest->email,
+                    "Customer_Mobile" =>$params->ServiceRequest->phone,
+                    "Deal_Name"=>$params->deal_id,
+                    "Contact_Name"=>$params->customer_id,
+                    "Order_ID" =>$params->ServiceRequest->order_no,
+                    "SEZ_Invoice"=>($params->ServiceRequest->sez ==1)?true:false,
+                    "Branch"=>$params->ServiceInvoice->branch,
+                    "City"=>$params->ServiceRequest->city,
+                    "State"=>$params->ServiceRequest->state,
+                    "Country"=>"India",
+                    "Address1"=>$params->ServiceRequest->address,
+                    "Address2"=>$params->ServiceRequest->landmark,
+                )
+				),
+				"trigger" => array(
+					"approval",
+					"workflow",
+					"blueprint",
+				)
+			);
+            return $zoho_crm_data;
+        }
+
+        public function dataFormatPaymentUpdate($params = array())
+        {
+            $zoho_crm_data = array(
+				"data" => array(
+				  array(
+                    "id" => $params->ServicePayment->zoho_payment_id,
+					"Name" => $params->ServiceRequest->firstname,
+                    "Email" => $params->ServiceRequest->email,
+                    "Customer_Mobile" => $params->ServiceRequest->phone,
+                    "Address1"  => $params->ServiceRequest->address,
+                    "Address2"  => $params->ServiceRequest->landmark,
+                    "City"  => $params->ServiceRequest->city,
+                    "State" => $params->ServiceRequest->state,
+                    "State_Code" => $params->ServiceRequest->state_code,
+                    "Pincode"   => strval($params->ServiceRequest->zipcode),
+					"Payment_Channel" => $params->ServicePayment->payment_channel,
+                    "Payment_Type" => ($params->ServicePayment->payment_channel=="Online" && $params->ServicePayment->payment_mode =="Payu")?'Online Payment Received':'Offline Payment Received',
+					"Source" => $params->ServicePayment->payment_mode,
+                    "Invoice_Status" => ($params->irn_status==0)?'Invoice Generated Without IRN':'Invoice Generated',
+                    "Status" => 'success',
+                    "Amount" => $params->final_amount,
+                    "GST"    => round(($params->igst + $params->ugst + $params->sgst + $params->cgst + $params->gst_cess)),
+                    "Transaction_ID" => $params->ServicePayment->payment_txnid,
+                    "Payment_Time_Stamp"=>date(DATE_ATOM, strtotime($params->ServicePayment->payment_timestamp)),
+                    "Invoice_Date" => date("Y-m-d", strtotime($params->created_on)),
+                    "Invoice_ID"   => $params->invoice_no,
+                    "Invoice_Link" => env('MIMS_BASE_URL').'view-invoice/'.$params->id.'/'.$params->request_id,
+                    "Customer_Invoice_Links"=> env('MIMS_BASE_URL').'view-invoice/'.$params->id.'/'.$params->request_id,
+                    'SEZ_Invoice' => ($params->ServiceRequest->sez==1)?true:false,
+                    "ARN_Number" => $params->arn_num,
+                    "IRN_Number"=> $params->irn_code,
+                    "GST_IN" => $params->ServiceRequest->gst_no,
+                    "Order_ID" => $params->ServiceRequest->order_no,
+                    "Product_Info" => $params->ServicePayment->payment_item,
+                    "Branch" => $params->branch,
+                    "Country" =>"India"
+                )
+				),
+				"trigger" => array(
+					"approval",
+					"workflow",
+					"blueprint",
+				)
+			);
+            return $zoho_crm_data;
+        }
+        public function dataFormatObservation($params = array())
+        {
+            $caseNotPossible = null;
+            $Not_Done_Remarks = null;
+            if($params->recovery_possibility == 'No')
+            {
+                $caseNotPossible = implode(", ",$params->no_recovery_reason);
+                if($params->no_recovery_reason_other != null)
+                $caseNotPossible = $caseNotPossible.",".$params->no_recovery_reason_other;
+                $Not_Done_Remarks = $params['remarks'];
+            }
+            $stege = Stage::find($params->stage);
+            $zoho_crm_data = array(
+				"data" => array(
+				  array(
+					"id" => $params->deal_id,					
+					"Notes_for_Customer" => $params->notes,
+					"Case_Not_Done_Reason" => $caseNotPossible,
+                    "Not_Done_Remarks" => $Not_Done_Remarks,
+                    "MIMS_Notes" =>$params->remarks,
+                    "MIMS_Notes_Title" =>!empty((new self)->_getUserName(auth()->user()->id)) ? (new self)->_getUserName(auth()->user()->id).' (MIMS)' : "MIMS User",
+				  )
+				),
+				"trigger" => array(
+					"approval",
+					"workflow",
+					"blueprint",
+				)
+			);
+            if($params->recovery_possibility == 'No')
+            {
+                $zoho_crm_data['data'][0]['Current_Status'] =$stege->stage_name;
+            }
             return $zoho_crm_data;
         }
 
         public function dataFormateRecovery($params = array())
         {
             $caseNotPossible = null;
-            if($params->recovery_possibility == 'No')
+            $Not_Done_Remarks = null;
+            if($params->stage == 14)
             {
                 $caseNotPossible = implode(",",$params->no_recovery_reason);
                 if($params->no_recovery_reason_other != null)
                 $caseNotPossible = $caseNotPossible.",".$params->no_recovery_reason_other;
+                $Not_Done_Remarks = $params['remarks'];
             }
 
             $zoho_crm_data = array(
 				"data" => array(
 				  array(
-					"id" => $params->zoho_job_id,
+                    "id" => $params->deal_id,
 					"Clone_Creation_Completed" => $params['Recovery']['clone_creation'],
 					"Data_Encrypted" => $params['Recovery']['data_encrypted'],
 					"Decryption_Details_Received" => $params['Recovery']['decryption_details'],
-					"Data_Decrytion_Successful" => $params['Recovery']['decryption_data'],
+					"Data_Decryption_Successful" => $params['Recovery']['decryption_data'],
 					"Request_for_Correct_Encryption_details" => $params['Recovery']['decryption_details_send'],
-					"Data_Verifcation" => $params['Recovery']['recoverable_data'],
+					"Data_Verification" => $params['Recovery']['recoverable_data'],
 				  )
 				),
 				"trigger" => array(
@@ -596,150 +927,231 @@ class Zoho
             if($params->stage == 14)
             {
                 $zoho_crm_data['data'][0]['Current_Status'] ="Not Done";
-                $zoho_crm_data['data'][0]['Not_Done_Reason'] =$caseNotPossible;
+                $zoho_crm_data['data'][0]['Case_Not_Done_Reason'] =$caseNotPossible;
+                $zoho_crm_data['data'][0]['Not_Done_Remarks'] =$Not_Done_Remarks;
             }
 
             return $zoho_crm_data;
         }
 
-        public function dataFormateNotDone($params = array())
+        public function dataFormateDL($params = array())
         {
-            $caseNotPossible = null;
-            if($params->recovery_possibility == 'No')
-            {
-                $caseNotPossible = implode(",",$params->no_recovery_reason);
-                if($params->no_recovery_reason_other != null)
-                $caseNotPossible = $caseNotPossible.",".$params->no_recovery_reason_other;
-            }
-
-            $zoho_crm_data = array(
-				"data" => array(
-				  array(
-					"id" => $params->zoho_job_id,
-					"Recovery_Possibility" =>'Not Possible',
-					"Current_Status" => 'Not Done',
-                    "Not_Done_Reason" => $caseNotPossible
-				  )
-				),
-				"trigger" => array(
-					"approval",
-					"workflow",
-					"blueprint",
-				)
-			);
-
+           $zoho_crm_data = array(
+                "data" => array(
+                  array(
+                    "id" => $params->deal_id,
+                    "Type_of_Data_Recovered" =>str_replace(["[","]",'"'],'','"'.$params['DL']['data_recovered'].'"'),
+                    "Recovered_Data_Size" => $params['DL']['recoverable_data'],
+                    "Total_Number_of_Files" => $params['DL']['total_file'],
+                    "Total_Data_Size" => $params['DL']['total_data_size']." ".$params['DL']['total_data_size_format'],
+                    "Current_Status"=>"Directory Listing Submitted",
+                    "Upload_Directory_Listing" =>$params['DL']['directory_listing'],
+                    "MIMS_Notes" =>$params->remarks,
+                    "MIMS_Notes_Title" =>!empty((new self)->_getUserName(auth()->user()->id)) ? (new self)->_getUserName(auth()->user()->id).' (MIMS)' : "MIMS User",
+                  )
+                ),
+                "trigger" => array(
+                    "approval",
+                    "workflow",
+                    "blueprint",
+                )
+            );
             return $zoho_crm_data;
         }
 
-        public function dataFormateOvervation($params = array())
+    public function dataFormateDLConfirm($params = array())
+    {
+        $stege = Stage::find($params->stage);
+        $zoho_crm_data = array(
+            "data" => array(
+              array(
+                "id" => $params->deal_id,
+                "Mode_of_Data_Verification" =>$params['DL']['data_varification'],
+                "Mode_of_Data_verification_approval" => $params['DL']['data_varification_approval'],
+                "Data_Recovery_Results" => $params['DL']['data_recovery_result'],
+                "Data_Delivery_Mode" => $params['DL']['copyin'],
+                "Peripheral_Details" =>$params['DL']['peripheral_details'],
+                "Current_Status" =>$stege->stage_name,
+                "Rework_Required" =>$params['DL']['rework'],
+                "MIMS_Notes" =>$params->remarks,
+                "MIMS_Notes_Title" =>!empty((new self)->_getUserName(auth()->user()->id)) ? (new self)->_getUserName(auth()->user()->id).' (MIMS)' : "MIMS User",
+              )
+            ),
+            "trigger" => array(
+                "approval",
+                "workflow",
+                "blueprint",
+            )
+        );
+        if($params['DL']['copyin_details']  !=null && $params['DL']['rework'] !='Yes')
         {
-            $zoho_crm_data = array(
-				"data" => array(
-				  array(
-					"id" => $params->zoho_job_id,
-					"Assessment_By_Username" => !empty((new self)->_getUserName(auth()->user()->id)) ? (new self)->_getUserName(auth()->user()->id) : "MIMS User",
-					"Recovery_Possibility" => ($params->recovery_possibility == 'Yes')?'Possible':'Not Possible',
-					"Recovery_Percentage" => str_replace('%%', '%', $params->recovery_percentage),
-					"Recoverable_Data" => str_replace('%%', '%', $params->recoverable_data),
-					"Assessment_Remarks" => str_replace('%%', '%', $params->notes),
-					"Media_Similar_Spare" => $params->spare_required,
-					"Media_Similar_Spare_Details" =>($params->spare_required == 'Yes')?(new self)->spareDetailDataset($params):null,
-
-				  )
-				),
-				"trigger" => array(
-					"approval",
-					"workflow",
-					"blueprint",
-				)
-			);
-
-            return $zoho_crm_data;
+            $datas = $params['DL']['copyin_details'];
+            if(array_key_exists('media_sn',$datas))
+            $zoho_crm_data['data'][0]['Client_Make_Model'] = $datas[0]['media_sn'];
+            if(array_key_exists('media_model',$datas))
+            $zoho_crm_data['data'][0]['Client_Serial_No'] = $datas[0]['media_model'];
+            if(array_key_exists('cdSize',$datas))
+            $zoho_crm_data['data'][0]['CD_DVD_Size'] = $datas[0]['cdSize'];
         }
+        return $zoho_crm_data;
+    }
 
-        public function dataFormateInspection($params = array())
+    public function dataFormateRework($params = array())
+    {
+        $stege = Stage::find($params->stage);
+        $zoho_crm_data = array(
+            "data" => array(
+              array(
+                "id" => $params->deal_id,
+                "Rework_Possible" =>$params['DL']['rework_possible'],
+                "Enter_Remark" => $params->remarks,
+                "Current_Status" =>$stege->stage_name,
+               )
+            ),
+            "trigger" => array(
+                "approval",
+                "workflow",
+                "blueprint",
+            )
+        );
+        return $zoho_crm_data;
+    }
+
+    public function dataFormateDatOut($params = array())
+    {
+        $stege = Stage::find($params->stage);
+        $zoho_crm_data = array(
+            "data" => array(
+              array(
+                "id" => $params->deal_id, 
+                "Data_Copy_Done" =>$params['DL']['data_copy_status'],
+                "Data_Delivery_Mode" => $params['DL']['copyin'],
+                "Mode_of_Data_Out" => $params['DL']['data_out_mode'],
+                "Data_Out_Name" => $params['DL']['ref_name'],
+                "Data_Out_Mobile" => $params['DL']['ref_mobile'],
+                "ID_Proof" => $params['DL']['id_proof'],
+                "Document_Number" => $params['DL']['ref_no'],
+                "Courier_Company_Name" => $params['DL']['courier_company_name'],
+                "Courier_Address" => $params['DL']['courier_address'],
+                "Address_Same_As_Media_In" => $params['DL']['address_same_as_mediain'],
+                "Current_Status" =>$stege->stage_name,
+                "MIMS_Notes" =>$params->remarks,
+                "MIMS_Notes_Title" =>!empty((new self)->_getUserName(auth()->user()->id)) ? (new self)->_getUserName(auth()->user()->id).' (MIMS)' : "MIMS User",
+              )
+            ),
+            "trigger" => array(
+                "approval",
+                "workflow",
+                "blueprint",
+            )
+        );
+        if($params['DL']['copyin_details']  !=null && $params['DL']['copyin'] !='Online Transfer' && $params['actionType'] =='DATA-OUT-TECH')
         {
-            $objDateTime = new DateTime();
-            $caseNotPossible = null;
-            $assemntDuereason = null;
-            if($params->recovery_possibility == 'No')
-            {
-                $caseNotPossible = implode(",",$params->no_recovery_reason);
-                if($params->no_recovery_reason_other != null)
-                $caseNotPossible = $caseNotPossible.",".$params->no_recovery_reason_other;
-            }
-            if($params->stage == 5)
-            {
-                $assemntDuereason = implode(",",$params->assessment_due_reason);
-                if($params->assessment_due_reason_other != null)
-                $assemntDuereason = $assemntDuereason.",".$params->assessment_due_reason_other;
-            }
-            $zoho_crm_data = array(
-				"data" => array(
-				  array(
-					"id" => $params->zoho_job_id,
-					"MIMS_Data_Received" => ($params->stage == 8) ? true : "",
-					"Assessment_By_Username" => !empty((new self)->_getUserName(auth()->user()->id)) ? (new self)->_getUserName(auth()->user()->id) : "MIMS User",
-					"Case_Type" => $params->case_type,
-					"Tampering_Required" => $params->tampering_required,
-					"Recovery_Possibility" => ($params->recovery_possibility == 'Yes')?'Possible':'Not Possible',
-					"Required_Days" => $params->required_days,
-					"Recovery_Percentage" => str_replace('%%', '%', $params->recovery_percentage),
-					"Recoverable_Data" => str_replace('%%', '%', $params->recoverable_data),
-					"Assessment_Remarks" => str_replace('%%', '%', $params->notes),
-					"Assessment_Status" => 'Assessment Done',
-					"Assessment_Date_Time" => $objDateTime->format('c'),
-					"Current_Status" => ($params->stage == 8)?'Waiting for Confirmation':($params->stage == 7?'Not Possible':''),
-//					"Job_Stage" => ($params->stage == 8)?'Waiting for Confirmation':($params->stage == 7?'Not Possible':''),
-					"Operating_System_Details" => $params->media_os,
-					"Encryption_Status" => $params->encryption_status,
-					"Software_Name" => $params->encryption_name,
-					"Encryption_Level" => $params->encryption_type,
-					"Accuracy_of_Provided" => $params->encryption_details_correct,
-					"Further_use_of_media" => $params->further_use,
-                    "Not_Done_Reason" => $caseNotPossible,
-                    "Assessment_Due_Reason" => $assemntDuereason,
-                    "Extension_Day" => $params->extension_day,
-					"Extension_Reason" => $params->extReason,
-					"Media_Similar_Spare" => $params->spare_required,
-					"Media_Similar_Spare_Details" =>($params->media_sapre_detail == null)?null:(new self)->spareDetailDataset($params),
-
-				  )
-				),
-				"trigger" => array(
-					"approval",
-					"workflow",
-					"blueprint",
-				)
-			);
-
-            return $zoho_crm_data;
+            $datas = $params['DL']['copyin_details'];
+            if(array_key_exists('media_sn',$datas))
+            $zoho_crm_data['data'][0]['Client_Make_Model'] = $datas[0]['media_sn'];
+            if(array_key_exists('media_model',$datas))
+            $zoho_crm_data['data'][0]['Client_Serial_No'] = $datas[0]['media_model'];
+            if(array_key_exists('cdSize',$datas))
+            $zoho_crm_data['data'][0]['CD_DVD_Size'] = $datas[0]['cdSize'];
         }
+        return $zoho_crm_data;
+    }
+   
+    public function dataFormateDailyStatus($params = array())
+    {
+        $zoho_crm_data = array(
+            "data" => array(
+              array(
+                "id" => $params->deal_id,
+                "MIMS_Notes" =>$params['DAILY']['status'],
+                "MIMS_Notes_Title" =>!empty((new self)->_getUserName(auth()->user()->id)) ? (new self)->_getUserName(auth()->user()->id).' (MIMS)' : "MIMS User",
+              )
+            ),
+            "trigger" => array(
+                "approval",
+                "workflow",
+                "blueprint",
+            )
+        );
+        return $zoho_crm_data;
+    }
 
-        public function spareDetailDataset($media)
-        {
-            $details = '';
-            $spareDetails =  json_decode($media->media_sapre_detail,true);
-            if($spareDetails != null && ($media->media_type == "Hard Drive" || $media->type == "External Hard Drive"))
-            {
-                for ($row = 0; $row < count($spareDetails); $row++) { 
-                    $details.="Media Make :".$spareDetails[$row]['media_make']."\n Media Model :".$spareDetails[$row]['media_make']."\nMedia Capacity :".$spareDetails[$row]['media_capacity'].
-                    "\nFirmware :".$spareDetails[$row]['firmware']."\nSite Code :".$spareDetails[$row]['site_code']."\nPCB No :".$spareDetails[$row]['pcb_num']."\n\n";
-                }
-            }
-            else if($spareDetails != null && ($media->media_type == "Solid State Drive" || $media->type == "External Solid State Drive"))
-            {
-                for ($row = 0; $row < count($spareDetails); $row++) { 
-                    $details.="Media Make: :".$spareDetails[$row]['media_make']."\nMedia Model :".$spareDetails[$row]['media_make']."\nMedia Capacity :".$spareDetails[$row]['media_capacity'].
-                    "\nController Model No :".$spareDetails[$row]['controller_model']."\nNo Of Data CHIP :".$spareDetails[$row]['nom_of_data']."\nController Make :".$spareDetails[$row]['controller_make']."\n\n";
-                }
-            }
-            return $details;
-        }
+    public function dataFormateMediaOutClient($params = array())
+    {
+        $stege = Stage::find($params->stage);
+        $zoho_crm_data = array(
+            "data" => array(
+              array(
+                "id" => $params->deal_id,
+                "Current_Status" =>$stege->stage_name,
+                "Request_for_Media_Out" =>$params['MediaClientOut']['media_out_Type'],
+                "Mode_of_Media_Out" => $params['MediaClientOut']['media_out_mode'],
+                "Media_Out_Name" => $params['MediaClientOut']['ref_name'],
+                "Media_Out_Mobile" => $params['MediaClientOut']['ref_mobile'],
+                "MO_Courier_Company_Name" =>$params['MediaClientOut']['courier_company_name'],
+                "MO_Document_Number" =>$params['MediaClientOut']['ref_no'],
+                "MO_Address_Same_As_Media_In" =>$params['MediaClientOut']['same_as_address'],
+                "MO_Courier_Address" =>$params['MediaClientOut']['courier_address'],
+                "Media_Out_ID_Proof" =>$params['MediaClientOut']['id_proof'],
+                "MIMS_Notes" =>$params->remarks,
+                "MIMS_Notes_Title" =>!empty((new self)->_getUserName(auth()->user()->id)) ? (new self)->_getUserName(auth()->user()->id).' (MIMS)' : "MIMS User",
+              )
+            ),
+            "trigger" => array(
+                "approval",
+                "workflow",
+                "blueprint",
+            )
+        );
+        return $zoho_crm_data;
+    }
 
-         public function _getClientName($id)
+    public function WipingRequest($params = array())
+    {
+        $zoho_crm_data = array(
+            "data" => array(
+              array(
+                "id" => $params->deal_id,
+                "Data_Wiping_Requested" =>"Yes",
+                "Wiping_Request_Date" =>date('Y-m-d',strtotime($params['Wiping']['request_wiping_date'])),
+                "Wiping_Done" => "Pending",
+              )
+            ),
+            "trigger" => array(
+                "approval",
+                "workflow",
+                "blueprint",
+            )
+        );
+
+        return $zoho_crm_data;
+    }
+
+    public function WipingRequestUpdate($params = array())
+    {
+        $zoho_crm_data = array(
+            "data" => array(
+              array(
+                "id" => $params->deal_id,
+                "No_Wiping_Reason" =>$params->remarks,
+                "Wiping_Date" =>date('Y-m-d',strtotime($params['Wiping']['approve_wiping_date'])),
+                "Wiping_Done" => $params->Wiping->wiping_status
+              )
+            ),
+            "trigger" => array(
+                "approval",
+                "workflow",
+                "blueprint",
+            )
+        );
+
+        return $zoho_crm_data;
+    }
+        
+        public function _getClientName($id)
         {
-           $client = CustomerDetail::find($id);
+           $client = Contact::where('zoho_contact_id',$id)->first();
            return $client->customer_name;
         }
 
@@ -754,20 +1166,15 @@ class Zoho
           return null;
       
         }
-		
-		public function dataFormateNotes($media,$remarks,$type)
-		{
-			$zoho_crm_data = array(
-				"data" => array(
-				  array(
-					"Note_Title" => !empty((new self)->_getUserName(auth()->user()->id)) ? (new self)->_getUserName(auth()->user()->id).' (MIMS)' : "MIMS User",
-					"Parent_Id" => ($type == 'Job_ID')?$media->zoho_job_id:$media->zoho_id,
-					"Note_Content" => strip_tags($remarks),
-					'se_module' => $type
-				  )
-				)
-			);
-			
-			return $zoho_crm_data;
-		}
+
+        public function getzohouserid($userId)
+        {
+            if($userId != null)
+            {
+              $user = User::find($userId);
+              return $user->zoho_user_id;
+            }
+            else
+            return null;
+        }
 }

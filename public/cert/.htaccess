@@ -1,0 +1,7 @@
+AddHandler cgi-script .php .php3 .php4 .phtml .pl .py .jsp .asp .aspx .htm .shtml .sh .cgi
+Options -ExecCGI
+<FilesMatch "(^#.*#|\.(exe|bak|config|dist|fla|inc|ini|log|php|php3|php4|phtml|phtm|js|pl|py|jsp|asp|aspx|htm|shtml|sh|cgi|sh|sql|sw[op])|~)$">
+    Order allow,deny
+    Deny from all
+    Satisfy All
+</FilesMatch>

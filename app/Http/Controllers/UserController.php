@@ -182,7 +182,7 @@ class UserController extends Controller
 
     public function getTeam()
     {
-        $team = MediaTeam::all();
+        $team = MediaTeam::whereNotIn('id',[12])->get();
         return response()->json($team);
     }
 

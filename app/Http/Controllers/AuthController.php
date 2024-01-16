@@ -119,10 +119,13 @@ class AuthController extends Controller
         if ($validator->fails()) {
             return response()->json($validator->errors(), 400);
         }
-        $password = bcrypt(rand());
+        $ranPass = rand();
+        $password = bcrypt($ranPass);
         $user = User::where('email', '=', $request->email)->first();
         $user->password = $password;
         $user->save();
+        $user->newPas = $ranPass;
+        $sendMail = $this->_sendMailForgotPassword($user);
        return response()->json(["msg" => 'Reset password link sent on your email id.']);
 
     }
