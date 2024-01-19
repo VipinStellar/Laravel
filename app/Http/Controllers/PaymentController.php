@@ -171,7 +171,7 @@ class PaymentController extends Controller
                 $data = array();
                 // Verify Payment Data in ServicePayment
                 $VerifiedPayment = ServicePayment::join('service_request', 'service_request.id', '=', 'service_payments.request_id')
-                                ->select('service_request.*','service_payments.id as payment_id','service_payments.total_amount','service_payments.total_tax','service_payments.tax_rate','service_payments.payment_amount','service_payments.payment_type','service_payments.payment_status','service_payments.payment_txnid')
+                                ->select('service_request.*','service_payments.id as payment_id','service_payments.total_amount','service_payments.total_tax','service_payments.tax_rate','service_payments.payment_amount','service_payments.payment_type','service_payments.payment_status','service_payments.payment_txnid','service_payments.existing_payment','service_payments.payment_mode','service_payments.payment_timestamp')
                                 ->where('service_payments.payment_txnid', $request->input('txnid'))
                                 ->where('service_request.media_id', $request->input('udf1'))
                                 ->orderBy('service_payments.id','desc')->first();

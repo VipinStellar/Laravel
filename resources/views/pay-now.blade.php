@@ -95,40 +95,15 @@
                         <p class="mb-0 fmon fs16"> Billing Information</p>
                     </div>
                     <div class="card-body pr-xl-2">
-                    @if(($result['customer_details']['GST_IN'] !='') && ($result['customer_details']['GST_IN'] != null))
-                        <div class="custom-control-inline custom-radio ml-4">
-                            <input type="radio" id="company" name="user_type" class="custom-control-input" value="company" checked>
-                            <label class="custom-control-label fs14" for="company"><strong>Company</strong></label>
-                        </div>
-                        <div class="custom-control-inline custom-radio pb-3 ml-4">
-                            <input type="radio" id="individual" name="user_type" class="custom-control-input" value="individual">
-                            <label class="custom-control-label fs14" for="individual"><strong>Individual</strong></label>
-                        </div>
-                    @else
-                        <div class="custom-control-inline custom-radio ml-4">
-                            <input type="radio" id="individual" name="user_type" class="custom-control-input" value="individual" checked>
-                            <label class="custom-control-label fs14" for="individual"><strong>Individual</strong></label>
-                        </div>
-                        <div class="custom-control-inline custom-radio pb-3 ml-4">
-                            <input type="radio" id="company" name="user_type" class="custom-control-input" value="company">
-                            <label class="custom-control-label fs14" for="company"><strong>Company</strong></label>
-                        </div>
-                    @endif
                     <div class="form-row">
-                        <div class="col-md-12 mb-1 pr-xl-3 individual-detail-input">
-                            <p class="fs14">If you have GST number, please select Company</p>
-                        </div>
-                        <div class="col-md-6 mb-3 pr-xl-3 mt-1 individual-detail-input for-validation">
-                            <input class="form-control" type="text" name="individualname" id="individualname" placeholder="Your Name *" value="{{ $result['customer_details']['Name'] }}" maxlength="50">
-                        </div>
-                        <div class="col-md-6 mb-3 pr-xl-3 mt-1 company-detail-input for-validation">
-                            <input class="form-control" type="text" name="companyname" id="companyname" placeholder="Company/Organisation Name *" value="{{ $result['customer_details']['Name'] }}" maxlength="50">
+                        <div class="col-md-6 mb-3 pr-xl-3 mt-1 for-validation">
+                            <input class="form-control" type="text" name="name" id="name" placeholder="Name *" autocomplete="off" value="{{ $result['customer_details']['Name'] }}" maxlength="50">
                         </div>
                         <div class="col-md-6 mb-3 pr-xl-3 mt-1 for-validation">
-                            <input class="form-control" type="email" name="email" id="email" placeholder="Email *" value="{{ $result['customer_details']['Email'] }}" maxlength="50" data-toggle="tooltip" title="Make sure to enter correct Email. Your transaction details will be sent on this Email">
+                            <input class="form-control" type="email" name="email" id="email" placeholder="Email *" autocomplete="off" value="{{ $result['customer_details']['Email'] }}" maxlength="50" data-toggle="tooltip" title="Make sure to enter correct Email. Your transaction details will be sent on this Email">
                         </div>
                         <div class="col-md-6 mb-3 pr-xl-3 for-validation">
-                            <input class="form-control numericint" type="tel" name="phone" id="phone" placeholder="Contact No.*" value="{{ $result['customer_details']['Customer_Mobile'] }}" maxlength="11">
+                            <input class="form-control numericint" type="tel" name="phone" id="phone" autocomplete="off" placeholder="Contact No.*" value="{{ $result['customer_details']['Customer_Mobile'] }}" maxlength="11">
                         </div>
                         <div class="col-md-6 mb-3 pr-xl-3 for-validation">
                             <input type="text" class="form-control" name="address" id="address" placeholder="Address *" value="{{ $result['customer_details']['Address1'] }}" maxlength="100">
@@ -159,9 +134,9 @@
                         <div class="col-md-6 mb-3 pr-xl-3 for-validation">
                             <input name="zipcode" id="zipcode" placeholder="Pin/Zip *" value="{{ $result['customer_details']['Pincode'] }}" size="35" class="form-control numericint" maxlength="6" />
                         </div>
-                        <div class="col-md-6 mb-3 pr-xl-3 company-detail-input for-validation">
+                        <div class="col-md-6 mb-3 pr-xl-3 for-validation {{ (isset($result['customer_details']['GST_IN']) && !empty($result['customer_details']['GST_IN']))?'':'d-none' }}">
                             <div class="input-group">
-                            <input name="gst_no" id="gst_no" placeholder="GSTIN/UIN *" value="{{ $result['customer_details']['GST_IN'] }}" size="35" class="form-control" maxlength="15" readonly data-toggle="tooltip" title="Check and verify your GSTIN properly. Invalid GSTIN will be removed from invoice.">
+                            <input name="gst_no" id="gst_no" placeholder="GSTIN/UIN *" value="{{ $result['customer_details']['GST_IN'] }}" size="35" class="form-control" autocomplete="off" maxlength="15" readonly data-toggle="tooltip" title="Check and verify your GSTIN properly. Invalid GSTIN will be removed from invoice.">
                             </div>
                         </div>
                             <input type="hidden" name="base_amount" value="{{ $result['customer_details']['Base_Amount'] }}">
@@ -170,7 +145,7 @@
                             <input type="hidden" name="sez" value="{{ $result['sez'] }}">
                             <input type="hidden" name="gst_api_status" value="{{ $result['gst_api_status'] }}">
                             <input type="hidden" name="tax_applicable" value="{{ $result['customer_details']['Tax_Applicable'] }}">
-                            <input type="hidden" name="zoho_branch_id" value="{{ $result['customer_details']['Branch'] }}">
+                            <input type="hidden" name="zoho_branch_id" value="{{ (isset($result['customer_details']['Branch']) && ($result['customer_details']['Branch']['id']!=''))?$result['customer_details']['Branch']['id']:'' }}">
                             <input type="hidden" name="plan_type" value="{{ $result['customer_details']['Service_Type'] }}">
                             <input type="hidden" name="deal_id" value="{{ $result['customer_details']['Deal_Name'] }}">
                             <input type="hidden" name="media_type" value="{{ $result['customer_details']['Amount_Type'] }}">
@@ -464,6 +439,7 @@
     var loadscript=new load_script();
     loadscript.countNumber();
   });
+  var verify_pincode_url = "{{ url('check-pincode') }}";
 </script>
 <script>
 $(window).on('load', function() {
@@ -477,13 +453,9 @@ $(window).on('load', function() {
 </script>
 @endif
 
-@if(isset($result['customer_details']) && (isset($result['customer_details']['State']) || isset($result['customer_details']['GST_IN'])))
+@if(isset($result['customer_details']) && (isset($result['customer_details']['State'])))
 <script>
     $(document).ready(function(){
-        if($("#company").is(":checked")){
-          $(".individual-detail-input").hide();
-          $(".company-detail-input").show();
-        }
         $("#state").val('<?php echo $result['customer_details']['State'] ?>').trigger('change');
     });
 </script>

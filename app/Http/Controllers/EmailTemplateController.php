@@ -1,12 +1,10 @@
 <?php
-
 namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\support\Facades\Validator;
 use Illuminate\Support\Carbon;
 use App\Models\EmailTemplate;
 use DB;
-
 class EmailTemplateController extends Controller
 {
     //
@@ -15,11 +13,11 @@ class EmailTemplateController extends Controller
         $this->middleware('auth');
     }
     public function templateList(Request $request){
-        
-        $subjectData = trim($request->input('subjectData'));
-        $query = DB::table('email_template')->select(DB::raw('id,subject,status,created_at,updated_at'));
-        if($subjectData !='' && $subjectData !=null){
-            $query->Where('subject', 'LIKE', '%'.$subjectData.'%');
+        $nameData = trim($request->input('nameData'));
+
+        $query = DB::table('email_template')->select(DB::raw('id,name,subject,status,created_at,updated_at'));
+        if($nameData !='' && $nameData !=null){
+            $query->Where('name', 'LIKE', '%'.$nameData.'%');
         }
         return $this->_getPaginatedResult($query,$request);
     }
@@ -28,6 +26,7 @@ class EmailTemplateController extends Controller
         if($request->isMethod('post')){
              // validation
             $validator = Validator::make($request->all(), [
+                'name' => 'required',
                 'subject' => 'required',
                 'template'=> 'required',
                 'status'  => 'required'
@@ -46,6 +45,7 @@ class EmailTemplateController extends Controller
                 $Email_temp->created_at = $date->format('Y-m-d H:i:s');
                 $data['message'] = 'Email Template Add successfully';
             }
+            $Email_temp->name = $request->input("name");
             $Email_temp->subject = $request->input("subject");
             $Email_temp->template = $request->input("template");
             $Email_temp->status = $request->input("status");

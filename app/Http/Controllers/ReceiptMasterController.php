@@ -86,7 +86,7 @@ class ReceiptMasterController extends Controller
             $receipt->transaction_id = $request->input('transaction_id');
             $receipt->cheque_dd = $request->input('cheque_dd');
             $receipt->payment_received_date = $request->input('payment_received_date');  
-            $receipt->transaction_date = $request->input('transaction_date');
+            //$receipt->transaction_date = $request->input('transaction_date');
             $receipt->save();
             return response()->json($receipt);
 

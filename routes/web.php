@@ -44,4 +44,5 @@ Route::post('/pay-now/proceed', [ PayNowController::class, 'payNowProceed']);
 Route::post('/pay-now/status/success', [ PayNowController::class, 'payNowSuccess']);
 Route::post('/pay-now/status/failure', [ PayNowController::class, 'payNowFailure']);
 Route::get('/document/{num}/{id}', [PDFController::class, 'printDocument']);
+Route::post('/check-pincode', [ PayNowController::class, 'checkPincode']);
  

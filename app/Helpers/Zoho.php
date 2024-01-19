@@ -795,7 +795,7 @@ class Zoho
                     "Contact_Name"=>$params->customer_id,
                     "Order_ID" =>$params->ServiceRequest->order_no,
                     "SEZ_Invoice"=>($params->ServiceRequest->sez ==1)?true:false,
-                    "Branch"=>$params->ServiceInvoice->branch,
+                  //  "Branch"=>$params->ServiceInvoice->branch,
                     "City"=>$params->ServiceRequest->city,
                     "State"=>$params->ServiceRequest->state,
                     "Country"=>"India",
@@ -846,7 +846,7 @@ class Zoho
                     "GST_IN" => $params->ServiceRequest->gst_no,
                     "Order_ID" => $params->ServiceRequest->order_no,
                     "Product_Info" => $params->ServicePayment->payment_item,
-                    "Branch" => $params->branch,
+                    //"Branch" => $params->branch,
                     "Country" =>"India"
                 )
 				),

@@ -160,7 +160,7 @@ class MediaApiController extends Controller
         }
         $servicePayment->save();
         $PaymentData = ServicePayment::join('service_request', 'service_request.id', '=', 'service_payments.request_id')
-        ->select('service_request.*','service_payments.id as payment_id','service_payments.total_amount','service_payments.total_tax','service_payments.tax_rate','service_payments.payment_amount','service_payments.payment_status','service_payments.payment_txnid')
+        ->select('service_request.*','service_payments.id as payment_id','service_payments.total_amount','service_payments.total_tax','service_payments.tax_rate','service_payments.payment_amount','service_payments.payment_status','service_payments.payment_txnid','service_payments.existing_payment','service_payments.payment_mode','service_payments.payment_timestamp')
         ->where('service_payments.request_id', $request->id)->orderBy('service_payments.id','desc')->first();
         $PaymentData['tax_applicable'] = $data['tax_applicable'];
         $PaymentData['po_number'] = null;

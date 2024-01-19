@@ -18,13 +18,6 @@ function hasData(elm) {
     }
 }
 
-// function trim(str){
-// 	if( typeof str !== 'undefined' ) {
-// 		var str=str.replace(/^\s+|\s+$/,'');
-//    		return str;
-// 	}
-// }
-
 function showError(msg){
 	if(msg){
 		if(msg == 'none'){
@@ -35,41 +28,15 @@ function showError(msg){
 	}else{
 		$('.details-alert').html('Please fill all required fields properly then proceed ahead.').show();
 	}
-	if ($('.submission-alert').length) {
-		$('.submission-alert').hide();
-	}
 }
-
 
 function resetOnReload(){
 	$('#paymentForm input[name=agree]').prop('checked', false);
 }
 
-//Validate form
-// function validateStepPlan() {
-//     if (hasData($('#paymentForm #plan_type')) === false){
-// 		return false;
-// 	}
-// 	if(!$('#paymentForm input[name=pay_now]:checked').val()){
-// 		$('#paymentForm input[name=pay_now]').closest('.for-validation').addClass('has-error');
-// 		return false;
-// 	}
-// }
-
 
 $(document).ready(function(){
-	$('#individual').on('click', function() {
-		$(".company-detail-input, #cityname").hide();
-		//$(".company-detail-input input, .company-detail-input select").val('');
-		$(".individual-detail-input").show();
-	});
-	$('#company').on('click', function() {
-		$(".individual-detail-input").hide();
-		$(".company-detail-input").show();
-	});
   resetOnReload();
-  
-
   $('#paymentForm').on('keyup keypress', function(e) {
 	  var keyCode = e.keyCode || e.which;
 	  if (keyCode === 13) { 
@@ -77,18 +44,6 @@ $(document).ready(function(){
 		return false;
 	  }
   });
-  
-  //form back navigation
-//   $('#pay-form #BackToStepInfo').on('click',function (e) {
-// 	  showError("none");
-// 	  setSectionTitle('step-info');
-// 	  $("#pay-form #step-details").fadeOut('fast',function() {
-// 		  $('.preview_fee').show();
-// 		  $("#pay-form #step-info").fadeIn('fast',function() {
-// 			  $('.job-steps li#step2').removeClass('active');
-// 		  });
-// 	  });
-//   });
 
   $('#pay-form #BackToStepInfo').on('click',function (e) {
 	  showError("none");
@@ -146,8 +101,7 @@ function otherCity(){
 
 function validateStepInfo(){
 	showError("none");
-    var a = "#paymentForm input[name='individualname']";
-	var a2 = "#paymentForm input[name='companyname']";
+    var a = "#paymentForm input[name='name']";
     var b = "#paymentForm input[name='email']";
 	var c = "#paymentForm input[name='phone']";
 	var d = "#paymentForm input[name='address']";
@@ -156,51 +110,30 @@ function validateStepInfo(){
 	var g = "#paymentForm select[name='state']";
 	var h = "#paymentForm input[name='zipcode']";
 	var gst = "#paymentForm input[name='gst_no']";
-	//var bt = "#paymentForm select[name='business_type']";
+	var sc = "#paymentForm input[name='state_code']";
+	var vzc = false;
 	// s
 	var atpos = $(b).val().indexOf("@");
 	var dotpos = $(b).val().lastIndexOf(".");
 	
 	var regExp = /^[ A-Za-z0-9,():./-]*$/;	
 	
-	if($('#company').is(':checked')){
-	  if(hasData(a2) === false || $(a2).val().length < 3){
-		  showError("Please fill a valid Name in billing information");
-		  $(a2).closest('.for-validation').addClass('has-error');
-		  $(a2).focus();
-		  return false;
-	  }
-	  else {
-		if(regExp.test($(a2).val()) == false){
-		  showError("Only alphabets and numeric characters allowed");
-		  $(a2).closest('.for-validation').addClass('has-error');
-		  $(a2).focus();
-		  return false;
-		}
-		else {
-			showError("none");
-			$(a2).closest('.for-validation').removeClass('has-error');
-		}
-	  }
+	if(hasData(a) === false || $(a).val().length < 3){
+		showError("Please fill a valid Name in billing information");
+		$(a).closest('.for-validation').addClass('has-error');
+		$(a).focus();
+		return false;
 	}
 	else {
-	  if(hasData(a) === false || $(a).val().length < 3){
-		  showError("Please fill a valid Name in billing information");
-		  $(a).closest('.for-validation').addClass('has-error');
-		  $(a).focus();
-		  return false;
+	  if(regExp.test($(a).val()) == false){
+		showError("Only alphabets and numeric characters allowed");
+		$(a).closest('.for-validation').addClass('has-error');
+		$(a).focus();
+		return false;
 	  }
 	  else {
-		if(regExp.test($(a).val()) == false){
-		  showError("Only alphabets and numeric characters allowed");
-		  $(a).closest('.for-validation').addClass('has-error');
-		  $(a).focus();
-		  return false;
-		}
-		else {
-		  showError("none");
-		  $(a).closest('.for-validation').removeClass('has-error');
-		}
+		showError("none");
+		$(a).closest('.for-validation').removeClass('has-error');
 	  }
 	}
 	
@@ -284,7 +217,7 @@ function validateStepInfo(){
 	}
 	
 	//gstin validate
-	if($('#company').is(':checked')){
+	if(($(gst).val() !=undefined) && ($(gst).val()!=null) && ($(gst).val()!='')){
 	  var regExp = /\d{2}[a-zA-z]{5}\d{4}[a-zA-Z]{1}\d{1}[0-9a-zA-Z]{2}/;
 	  var gstval = $(gst).val().substring(0, 2); // 0,1 == 2 num
 	  var state_code = $('#paymentForm #state_code').val();
@@ -326,7 +259,46 @@ function validateStepInfo(){
 	else {
 		showError("none");
 	}
+
+	if((($(sc).val!=undefined) && ($(sc).val!=null) && ($(sc).val!=''))){
+		$.ajax({
+			type: "POST",
+			async : false,
+			dataType: "json",
+			url: verify_pincode_url,
+			data: {'state_code':$(sc).val(), 'zipcode': $(h).val()},
+			cache: false,
+			beforeSend: function(){
+			   $(".job-form").addClass('loading');
+			 },
+			success: function(data) {
+				if(data.status=='success'){
+					if(data.message==true){
+						vzc = data.message;
+					}
+				}
+			},
+			error: function (jqXHR, status, err) {
+			   //alert(err);
+			 },
+			complete: function (jqXHR, status) {
+			   //console.log(jqXHR['responseText']);
+				$(".job-form").removeClass('loading');
+				
+			 }
+		});
+	}
 	
+	if(vzc==false){
+		console.log(vzc);
+		showError("you have enter wrong Zipcode/Pincode");
+		$(h).closest('.for-validation').addClass('has-error');
+		$(h).focus();
+		return false;
+	}else{
+		showError("none");
+	}
+
 	setInfoDetails();
 	//$('#verifyDetailsModal').modal({backdrop: 'static',keyboard: false});
 	return true;	
@@ -338,7 +310,7 @@ function getstateId(elem){
 
 function setInfoDetails(){
 	$('.table_verify_data tr > td.data_value').text('');
-	var name= $('#company').is(':checked') ? $("#paymentForm input[name='companyname']").val() : $("#paymentForm input[name='individualname']").val();
+	var name= $("#paymentForm input[name='name']").val();
     var email= $("#paymentForm #email").val();
 	var phone= $("#paymentForm #phone").val();
 	var address= $("#paymentForm #address").val() +' '+ $("#paymentForm #landmark").val();

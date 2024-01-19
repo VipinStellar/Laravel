@@ -16,7 +16,7 @@ class PayNowController extends Controller
     //
     public function __construct()
     {
-        $this->middleware('auth:api',['except' => ['index','payNowProceed','payNowSuccess','payNowFailure']]);
+       
     }
 
     public function index($id){
@@ -63,49 +63,32 @@ class PayNowController extends Controller
         }
         
         $data['result'] = $params;
+        // echo "<pre>";
+        // print_r($params['customer_details']);
         return view('pay-now', $data);
     }
 
     public function payNowProceed(Request $request){
-        if($request->isMethod('post') && ($request->input('id')!='') && ($request->input('user_type')!='') && ($request->input('pay_now') =='proceed') && ($request->input('agree') =='on')){
+        if($request->isMethod('post') && ($request->input('id')!='') && ($request->input('pay_now') =='proceed') && ($request->input('agree') =='on')){
             $id = preg_replace('/\s+/', '', trim($request->input('id')));
             $request['id'] = $id;
-            if($request->input('user_type') =='individual'){
-                $validator = Validator::make($request->all(), [
-                    'individualname' => 'required',
-                    'email'     => 'required|email',
-                    'phone'     => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:10',
-                    'address'   => 'required|string',
-                    'state'     => 'required',
-                    'city'      => 'required',
-                    'zipcode'   => 'required|numeric',
-                    'zoho_branch_id' => 'required',
-                    'base_amount'=> 'required|numeric',
-                    'tax_amount' => 'required|numeric',
-                    'final_amount'=> 'required|numeric'
-                ]);
-            } else {
-                $validator = Validator::make($request->all(), [
-                    'companyname' => 'required',
-                    'email'     => 'required|email',
-                    'phone'     => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:10',
-                    'address'   => 'required|string',
-                    'state'     => 'required',
-                    'city'      => 'required',
-                    'zipcode'   => 'required|numeric',
-                    'zoho_branch_id' => 'required',
-                    'gst_no'    => 'required',
-                    'base_amount'=> 'required|numeric',
-                    'tax_amount' => 'required|numeric',
-                    'final_amount'=> 'required|numeric'
-                ]);
-            }
-                
-
-            if($validator->fails()){
-                $errors = $validator->errors();
-                return redirect()->back()->withErrors($errors);
-            }
+              $validator = Validator::make($request->all(), [
+                  'name'      => 'required',
+                  'email'     => 'required|email',
+                  'phone'     => 'required|regex:/^([0-9\s\-\+\(\)]*)$/|min:10',
+                  'address'   => 'required|string',
+                  'state'     => 'required',
+                  'city'      => 'required',
+                  'zipcode'   => 'required|numeric',
+                  'zoho_branch_id' => 'required',
+                  'base_amount'=> 'required|numeric',
+                  'tax_amount' => 'required|numeric',
+                  'final_amount'=> 'required|numeric'
+              ]);
+              if($validator->fails()){
+                  $errors = $validator->errors();
+                  return redirect()->back()->withErrors($errors);
+              }
             
           if($request->input('base_amount') > 0 &&  $request->input('final_amount') > 0){
             //create transaction id
@@ -114,7 +97,6 @@ class PayNowController extends Controller
             $request['payment_mode']= 'Payu';
 
             $addPayment = PaymentProcess::AddPayNowRequest($request);
-            
             if($addPayment!='' && $addPayment['id'] !=''){
             // Create a map of parameters to pass to the PayU API
                 $params = array(
@@ -122,7 +104,7 @@ class PayNowController extends Controller
                     "txnid"     => $txnid,
                     "amount"    =>  $request->input('final_amount'),
                     "productinfo"=> ($request->input('media_type')!='')?$request->input('media_type'):'service',
-                    "firstname"  => ($request->input('user_type')=='individual')?$request->input('individualname'):$request->input('companyname'),
+                    "firstname"  => $request->input('name'),
                     "email"      => $request->input('email'),
                     "phone"      => $request->input('phone'),
                     "surl"       => url('pay-now/status/success'),
@@ -199,7 +181,7 @@ class PayNowController extends Controller
                 $data = array();
                 // Verify Payment Data in ServicePayment
                 $VerifiedPayment = ServicePayment::join('service_request', 'service_request.id', '=', 'service_payments.request_id')
-                                ->select('service_request.*','service_payments.id as payment_id','service_payments.zoho_payment_id','service_payments.total_amount','service_payments.total_tax','service_payments.tax_rate','service_payments.payment_amount','service_payments.payment_type','service_payments.payment_status','service_payments.payment_txnid')
+                                ->select('service_request.*','service_payments.id as payment_id','service_payments.zoho_payment_id','service_payments.total_amount','service_payments.total_tax','service_payments.tax_rate','service_payments.payment_amount','service_payments.payment_type','service_payments.payment_status','service_payments.payment_txnid','service_payments.existing_payment','service_payments.payment_mode','service_payments.payment_timestamp')
                                 ->where('service_payments.payment_txnid', $request->input('txnid'))
                                 ->where('service_request.id', $request->input('udf4'))
                                 ->orderBy('service_payments.id','desc')->first();
@@ -473,5 +455,14 @@ class PayNowController extends Controller
          } else {
             echo "<h1 class=\"hd-sml\">Error!!! Transaction verification failed. Please contact <a href='https://www.stellarinfo.co.in/company/contact.php'>support</a></h1>";
         }
+    }
+
+    public function checkPincode(Request $request){
+      $data['status']='error';
+      if($request->input('state_code') !='' && $request->input('zipcode') !=''){
+        $data['message'] = $this->_checkPinCode($request->input('state_code'),$request->input('zipcode'));
+        $data['status']='success';
+      } 
+      return json_encode($data);
     }
 }

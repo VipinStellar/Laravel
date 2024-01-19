@@ -112,10 +112,12 @@ class PaymentApiController extends Controller
             $searchfieldName = $request->input('searchfieldName');
             $branchId = implode(',',$this->_getBranchId());
             
-            $select = 'service_request.*,service_payments.payment_item,service_payments.total_amount,service_payments.total_tax,service_payments.payment_amount,service_payments.payment_status,service_payments.payment_type,service_payments.payment_txnid,service_payments.payment_timestamp,service_invoice.invoice_no,service_invoice.id as invoiceId,service_invoice.irn_status,branch.branch_name';
+            $select = 'service_request.*,service_payments.payment_item,service_payments.total_amount,service_payments.total_tax,
+                      service_payments.payment_amount,service_payments.payment_status,service_payments.payment_type,service_payments.payment_txnid,
+                      service_payments.payment_timestamp,service_invoice.invoice_no,service_invoice.id as invoiceId,service_invoice.irn_status,
+                      branch.branch_name';
             $query = DB::table('service_request')->select(DB::raw($select));
             $query->leftJoin("service_payments","service_payments.request_id", "=", "service_request.id");
-           // $query->leftJoin("service_invoice","service_invoice.request_id", "=", "service_request.id");
             $query->leftJoin("service_invoice",function($join)
                         {
                             $join->on("service_invoice.request_id", "=", "service_request.id");
@@ -162,7 +164,7 @@ class PaymentApiController extends Controller
     {   
         // Get Payment Details
         $PaymentData = ServicePayment::join('service_request', 'service_request.id', '=', 'service_payments.request_id')
-                                ->select('service_request.*','service_payments.id as payment_id','service_payments.total_amount','service_payments.total_tax','service_payments.tax_rate','service_payments.payment_amount','service_payments.payment_status','service_payments.payment_txnid')
+                                ->select('service_request.*','service_payments.id as payment_id','service_payments.total_amount','service_payments.total_tax','service_payments.tax_rate','service_payments.payment_amount','service_payments.payment_status','service_payments.payment_txnid','service_payments.existing_payment','service_payments.payment_mode','service_payments.payment_timestamp')
                                 ->where('service_payments.request_id', $paymentId)->orderBy('service_payments.id','desc')->first();
     
         if($PaymentData){

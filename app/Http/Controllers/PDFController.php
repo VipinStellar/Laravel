@@ -307,6 +307,18 @@ class PDFController extends Controller
                  $media->added_onShowDate =$HisMedia->added_on;
                  $html =  view('mediaout-print',$data);
             }
+            elseif($type == 'print-dlacl')
+            {
+                $html =  view('dlacl-print',$data);
+            }
+            elseif($type == 'print-dlac')
+            {
+                $html =  view('dlac-print',$data);
+            }
+            elseif($type == 'print-jobcard')
+            {
+                $html =  view('jobcard-print',$data);
+            }
             else 
             abort(404, 'File not found!');
             return $html;

@@ -103,7 +103,7 @@
           <td><strong>Size</strong></td>
         </tr>
         <?php if($result->datOut) {  $data = json_decode($result->datOut['copyin_details'],true);
-          //echo "<pre>";print_r($data);
+         if(!empty($data)) {
           ?>
         <tr>
           <td>{{ $result->media_type }}</td>
@@ -111,7 +111,7 @@
           <td>{{ $data[0]['media_model'] }}</td>
           <td>{{ $data[0]['capacity'] }}</td>
         </tr>
-        <?php } ?>
+        <?php } }?>
       </table>
     </div>
   </div>

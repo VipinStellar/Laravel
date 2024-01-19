@@ -12,6 +12,7 @@ use App\Models\State;
 use App\Models\ServiceRequest;
 use App\Models\ServicePayment;
 use App\Models\ServiceInvoice;
+use App\Models\ReceiptMaster;
 use DB;
 use Helper;
 class PaymentProcess
@@ -153,8 +154,10 @@ class PaymentProcess
         if (!empty($req_data) && $req_data !== null && $req_data !== false) {
             $e_invoice_data = json_encode($req_data['invoice_data']);		
          
-            $seller_gstin = $req_data['seller_gstin'];
-            $seller_ownerid = $req_data['seller_ownerid'];
+            //$seller_gstin = $req_data['seller_gstin'];
+            //$seller_ownerid = $req_data['seller_ownerid'];
+			$seller_gstin = '07AAFCD5862R007';
+            $seller_ownerid = '7bd00a2e-e981-42e3-8689-b828139c20fa';
             $api_url = env('GST_API_URL');
             $api_token = env('GST_API_TOKEN');
             
@@ -567,7 +570,12 @@ class PaymentProcess
             $ServiceInvoice->invoice_no = $invoice_no;
             $ServiceInvoice->invoice_id = $maxId;
             $ServiceInvoice->Save();
-            
+           ///Insert Reciept
+           if($params['existing_payment'] != 'Credit')
+           {
+                $params['ServiceInvoice'] = $ServiceInvoice;
+                $receipt = self::AddReceipt($params);
+           }
             if($maxIdRow && !empty($BranchData['branch_code'])){
             if(!empty($params['gst_no'])){
                 $e_invoice_data = array(
@@ -669,6 +677,27 @@ class PaymentProcess
             }
             return $ServiceInvoice;
         }
+    }
+
+    public static function AddReceipt($params)
+    {
+        $receipt = new ReceiptMaster();
+        $receipt->media_id = $params['media_id'];
+        $receipt->branch_id = $params['ServiceInvoice']['invoice_branch_id'];
+        $receipt->invoice_no = $params['ServiceInvoice']['invoice_no'];
+        $receipt->invoice_id = $params['ServiceInvoice']['id'];
+        $branch = Branch::find($receipt->branch_id);
+        $branch->receipt_num = $branch->receipt_num + 1;
+        $branch->save();
+        $receipt->receipt_num =$branch->branch_code."/R/".$branch->receipt_num;
+        $receipt->payment_mode = $params['payment_mode'];
+        $receipt->transaction_id = $params['payment_txnid'];
+        $receipt->received_amount = $params['payment_amount'];
+     //   $receipt->tds_amount = '0';   
+        $receipt->payment_received_date =date('Y-m-d',strtotime($params['payment_timestamp'])); 
+        $receipt->save();
+        return $receipt;
+
     }
 
     public static function updateFinalPrice($params)
@@ -907,6 +936,9 @@ class PaymentProcess
 	//Pay Now method
     public static function AddPayNowRequest($request){
         $BranchData = Branch::where('zoho_branch_id',$request->input('zoho_branch_id'))->first();
+        if(!isset($BranchData) && empty($BranchData)){
+             $BranchData = New Branch();
+        }
         //set state for other territory
         $state      = strip_tags($request->input('state'));
         // Find State code
@@ -925,7 +957,7 @@ class PaymentProcess
         $date = Carbon::now();
         // insert data in service_request table
             $ServiceRequest = New ServiceRequest();
-            $ServiceRequest->firstname = strip_tags(($request->input('user_type')=='individual')?$request->input('individualname'):$request->input('companyname'));
+            $ServiceRequest->firstname = $request->input('name');
             $ServiceRequest->email     = strip_tags($request->input('email'));
             $ServiceRequest->phone     = strip_tags($request->input('phone'));
             $ServiceRequest->address   = strip_tags($request->input('address'));
@@ -934,7 +966,7 @@ class PaymentProcess
             $ServiceRequest->state     = strip_tags($state);
             $ServiceRequest->state_code= $state_code;
             $ServiceRequest->zipcode   = strip_tags($request->input('zipcode'));
-            $ServiceRequest->gst_no    = strip_tags(($request->input('user_type')=='company')?$request->input('gst_no'):'');
+            $ServiceRequest->gst_no    = strip_tags(!empty($request->input('gst_no'))?$request->input('gst_no'):'');
             $ServiceRequest->sez       = ($request->input('sez')=='yes')?1:0;
             $ServiceRequest->plan_type = strip_tags($request->input('plan_type'));
             $ServiceRequest->deal_id   = strip_tags($request->input('deal_id'));
